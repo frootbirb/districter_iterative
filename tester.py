@@ -27,7 +27,7 @@ def getNextParam(scale):
 def doTests(scale):
     Globals.set(0, scale=scale)
     for numUnit, metricID, scale in getNextParam(scale):
-        print("Created {} groups of {} with criteria {}".format(numUnit, scale, metricID))
+        print("Created {} groups with criteria {}".format(numUnit, scale, metricID))
         solve(numUnit, metricID, scale)
 
 
