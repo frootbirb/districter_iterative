@@ -3,6 +3,19 @@ from data_structs import State, Unit, Group, Globals
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
 
+def sorter(state: State, group: Group, unit: Unit):
+    return (
+        -state.isPlaced(unit),
+        # Prioritize units that don't push this over the max metric
+        unit.metric + group.metric > state.maxAcceptableMetric,
+        # Prioritize stealing from a larger group
+        state.getGroupFor(unit).metric,
+        # Prioritize shorter distance
+        -group.getAverageDistance(unit),
+        unit.metric,
+    )
+
+
 def getNext(state: State) -> tuple[Unit, Group]:
     baseUnits = state.unplacedUnits[:]
 
@@ -17,7 +30,9 @@ def getNext(state: State) -> tuple[Unit, Group]:
 
     # If one of the groups is too big, we will allow stealing from it
     for otherdist in state.groups:
-        if otherdist.metric > state.maxAcceptableMetric:
+        if otherdist.metric > state.maxAcceptableMetric or (
+            otherdist.metric > group.metric and not state.hasAnyUnplacedAdjacent(group)
+        ):
             baseUnits += {unit for unit in otherdist.units if otherdist.canLose(unit)}
 
     # Get the units which might be viable - unplaced units adjacent to a given group, or those with no adjacent, like AK
@@ -27,20 +42,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
         units = (unit for unit in baseUnits if (unit in group.adj or len(unit.adj) == 0))
 
     return (
-        max(
-            units,
-            key=lambda unit: (
-                # Prioritize units that aren't in a district currently
-                -state.isPlaced(unit),
-                # Prioritize units that don't push this over the max metric
-                unit.metric + group.metric > state.maxAcceptableMetric,
-                # Prioritize stealing from a larger group
-                state.getGroupFor(unit).metric,
-                # Prioritize shorter distance
-                -group.getAverageDistance(unit),
-                unit.metric,
-            ),
-        ),
+        max(units, key=lambda unit: sorter(state, group, unit)),
         group,
     )
 
