@@ -29,11 +29,11 @@ def getNext(state: State) -> tuple[Unit, Group]:
     )
 
     # If one of the groups is too big, we will allow stealing from it
-    for otherdist in state.groups:
-        if otherdist.metric > state.maxAcceptableMetric or (
-            otherdist.metric > group.metric and not state.hasAnyUnplacedAdjacent(group)
+    for othergroup in state.groups:
+        if othergroup.metric > state.maxAcceptableMetric or (
+            othergroup.metric > group.metric and not state.hasAnyUnplacedAdjacent(group)
         ):
-            baseUnits += {unit for unit in otherdist.units if otherdist.canLose(unit)}
+            baseUnits += {unit for unit in othergroup.units if othergroup.canLose(unit)}
 
     # Get the units which might be viable - unplaced units adjacent to a given group, or those with no adjacent, like AK
     if group.empty() or len(group.adj) == 0:
@@ -63,29 +63,29 @@ def removeFromGroup(state: State, unit: Unit, group: Group) -> None:
 
 
 def generateUnplaced(
-    state: State, borders: set, seed: Unit = None, units: set = None, adjdists: set = None
+    state: State, borders: set, seed: Unit = None, units: set = None, adjgroups: set = None
 ) -> tuple[set, set]:
     if not seed:
         seed = next(iter(borders))
     if not units:
         units = set()
-    if not adjdists:
-        adjdists = set()
+    if not adjgroups:
+        adjgroups = set()
 
     units.add(seed)
     for unit in filter(lambda unit: unit not in units, Globals.unitdict[seed].adj):
         if (placement := state.placements.get(unit, 0)) != 0:
-            adjdists.add(placement)
+            adjgroups.add(placement)
         else:
-            downstream = generateUnplaced(state, borders, unit, units, adjdists)
+            downstream = generateUnplaced(state, borders, unit, units, adjgroups)
             units |= downstream[0]
-            adjdists |= downstream[1]
+            adjgroups |= downstream[1]
 
         # Shortcut out of the loop if we've seen at least two groups
-        if len(adjdists) > 1:
-            return units, adjdists
+        if len(adjgroups) > 1:
+            return units, adjgroups
 
-    return units, adjdists
+    return units, adjgroups
 
 
 def generateDisconnectedGroups(state: State, group: Group) -> set:
@@ -93,9 +93,9 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
     borders = {unit for unit in group.adj if not state.isPlaced(unit)}
 
     while len(borders) > 0:
-        unplaced, adjdists = generateUnplaced(state, borders)
+        unplaced, adjgroups = generateUnplaced(state, borders)
         borders -= unplaced
-        if len(adjdists) == 1:
+        if len(adjgroups) == 1:
             yield unplaced
 
 
@@ -131,11 +131,11 @@ def doStep(state: State) -> State:
     return state
 
 
-def solve(numDist, metricID=0, scale=0, callback=None) -> dict:
+def solve(numUnit, metricID=0, scale=0, callback=None) -> dict:
     Globals.set(metricID, scale, callback)
 
     # Start the solver!
-    state = State(numDist=numDist)
+    state = State(numUnit=numUnit)
     while len(state.unplacedUnits) != 0 or any(group.metric > state.maxAcceptableMetric for group in state.groups):
         state = doStep(state)
 

@@ -108,11 +108,11 @@ class Group:
         # remove the unit's metric from the group's metric
         self.metric -= unit.metric
         # if this unit is adjacent to the group, add it to the adjacency list
-        if any(reg in self.units for reg in unit.adj):
+        if any(adjunit in self.units for adjunit in unit.adj):
             self.adj.add(unit.code)
         # remove units that are no longer adjacent
         for adjunit in unit.adj - self.units:
-            if all(reg not in self.units for reg in unit.adj):
+            if all(u not in self.units for u in Globals.unitdict[adjunit].adj):
                 self.adj.remove(adjunit)
 
     def canLose(self, unit: Unit) -> bool:
@@ -133,14 +133,14 @@ class Group:
 
 
 class State:
-    def __init__(self, numDist) -> None:
+    def __init__(self, numUnit) -> None:
         self.placements = {}
         self.unplacedUnits = sorted(Globals.unitlist, key=lambda unit: unit.metric, reverse=True)
-        self.groups = [Group(i + 1) for i in range(numDist)]
+        self.groups = [Group(i + 1) for i in range(numUnit)]
 
         unitMetrics = [unit.metric for unit in Globals.unitlist]
         self.sumUnitMetrics = sum(unitMetrics)
-        equalSplit = self.sumUnitMetrics / numDist
+        equalSplit = self.sumUnitMetrics / numUnit
         largestUnitMetric = max(unitMetrics)
         # TODO confirm that this is possible before starting?
         # The maximum acceptable size is 120% of an even split, or the largest single unit

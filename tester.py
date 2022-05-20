@@ -19,16 +19,16 @@ def profile(string):
 
 
 def getNextParam(scale):
-    for numDist in range(1, 8):
+    for numUnit in range(1, 8):
         for metricID in Globals.allowed:
-            yield numDist, metricID, scale
+            yield numUnit, metricID, scale
 
 
 def doTests(scale):
     Globals.set(0, scale=scale)
-    for numDist, metricID, scale in getNextParam(scale):
-        print("Created {} groups of {} with criteria {}".format(numDist, scale, metricID))
-        solve(numDist, metricID, scale)
+    for numUnit, metricID, scale in getNextParam(scale):
+        print("Created {} groups of {} with criteria {}".format(numUnit, scale, metricID))
+        solve(numUnit, metricID, scale)
 
 
 def doParallelTests(scale):
