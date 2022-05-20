@@ -142,11 +142,11 @@ def doStep(state: State) -> State:
     return state
 
 
-def solve(numUnit, metricID=0, scale=0, callback=None) -> dict:
+def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
     Globals.set(metricID, scale, callback)
 
     # Start the solver!
-    state = State(numUnit=numUnit)
+    state = State(numGroup=numGroup)
     while len(state.unplacedUnits) != 0 or any(group.metric > state.maxAcceptableMetric for group in state.groups):
         state = doStep(state)
 

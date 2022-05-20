@@ -133,14 +133,14 @@ class Group:
 
 
 class State:
-    def __init__(self, numUnit) -> None:
+    def __init__(self, numGroup) -> None:
         self.placements = {}
         self.unplacedUnits = sorted(Globals.unitlist, key=lambda unit: unit.metric, reverse=True)
-        self.groups = [Group(i + 1) for i in range(numUnit)]
+        self.groups = [Group(i + 1) for i in range(numGroup)]
 
         unitMetrics = [unit.metric for unit in Globals.unitlist]
         self.sumUnitMetrics = sum(unitMetrics)
-        equalSplit = self.sumUnitMetrics / numUnit
+        equalSplit = self.sumUnitMetrics / numGroup
         largestUnitMetric = max(unitMetrics)
         # TODO confirm that this is possible before starting?
         # The maximum acceptable size is 120% of an even split, or the largest single unit
