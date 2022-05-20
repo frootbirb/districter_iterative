@@ -1,72 +1,95 @@
-from data_structs import State, Region,  District, Globals
+from data_structs import State, Unit, Group, Globals
 
-# Solver
+# --- Solver -----------------------------------------------------------------------------------------------------------
 
-def getNext(state: State) -> tuple[Region, District]:
-    baseRegions = state.unplacedRegions[:]
 
-    # Prioritize districts that have at least one adjacent empty region or are empty
-    district = min(state.districts, key=lambda district: (-(state.hasAnyUnplacedAdjacent(district) or district.empty()), district.metric))
+def getNext(state: State) -> tuple[Unit, Group]:
+    baseUnits = state.unplacedUnits[:]
 
-    # If one of the districts is too big, we will allow stealing from it
-    # If this district has no available adjacent districts, we will allow stealing from any larger neighbor
-    noneAdjacent = not state.hasAnyUnplacedAdjacent(district) and not district.empty()
-    for otherdist in state.districts:
-        if otherdist.metric > state.maxAcceptableMetric or (otherdist.metric > district.metric and noneAdjacent):
-            baseRegions += { region for region in otherdist.regions if otherdist.canLose(region) }
+    group = min(
+        state.groups,
+        key=lambda group: (
+            # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
+            -(state.hasAnyUnplacedAdjacent(group) or group.empty() or len(group.adj) == 0),
+            group.metric,
+        ),
+    )
 
-    # Get the regions which might be viable - unplaced regions adjacent to a given district, or those with no adjacent 
-    # (e.g. AK) which aren't too big for the remaining overhead of the district
-    if district.empty():
-        regions = baseRegions
+    # If one of the groups is too big, we will allow stealing from it
+    # If this group has no available adjacent units, we will allow stealing from any larger neighbor
+    noneAdjacent = not state.hasAnyUnplacedAdjacent(group) and not group.empty()
+    for otherdist in state.groups:
+        if otherdist.metric > state.maxAcceptableMetric or (otherdist.metric > group.metric and noneAdjacent):
+            baseUnits += {unit for unit in otherdist.units if otherdist.canLose(unit)}
+
+    # Get the units which might be viable - unplaced units adjacent to a given group, or those with no adjacent, like AK
+    if group.empty() or len(group.adj) == 0:
+        units = baseUnits
     else:
-        regions = (region for region in baseRegions if (region in district.adj or
-                                                        len(region.adj) == 0))
-    return max(regions, key=lambda region: (
-        region.metric + district.metric > state.maxAcceptableMetric,
-        state.getDistrictFor(region).metric,
-        -district.getAverageDistance(region), 
-        region.metric)), district
+        units = (unit for unit in baseUnits if (unit in group.adj or len(unit.adj) == 0))
 
-def addToDistrict(state: State, region: Region, district: District) -> None:
-    district.addRegion(region)
-    if (placement := state.placements.get(region, 0)) == 0:
-        state.unplacedRegions.remove(region)
+    return (
+        max(
+            units,
+            key=lambda unit: (
+                unit.metric + group.metric > state.maxAcceptableMetric,
+                state.getGroupFor(unit).metric,
+                -group.getAverageDistance(unit),
+                unit.metric,
+            ),
+        ),
+        group,
+    )
+
+
+def addToGroup(state: State, unit: Unit, group: Group) -> None:
+    group.addUnit(unit)
+    if (placement := state.placements.get(unit, 0)) == 0:
+        state.unplacedUnits.remove(unit)
     else:
-        state.districts[placement-1].removeRegion(region)
-    state.placements[region] = district.index
+        state.groups[placement - 1].removeUnit(unit)
+    state.placements[unit] = group.index
 
-def removeFromDistrict(state: State, region: Region, district: District) -> None:
-    state.unplacedRegions.append(region)
-    district.removeRegion(region)
-    state.placements[region] = 0
 
-def generateUnplaced(state: State, borders: set, seed: Region = None, regions: set = None, adjdists: set = None) -> tuple[set, set]:
+def removeFromGroup(state: State, unit: Unit, group: Group) -> None:
+    state.unplacedUnits.append(unit)
+    group.removeUnit(unit)
+    state.placements[unit] = 0
+
+
+def generateUnplaced(
+    state: State,
+    borders: set,
+    seed: Unit = None,
+    units: set = None,
+    adjdists: set = None,
+) -> tuple[set, set]:
     if not seed:
         seed = next(iter(borders))
-    if not regions:
-        regions = set()
+    if not units:
+        units = set()
     if not adjdists:
         adjdists = set()
 
-    regions.add(seed)
-    for region in filter(lambda region: region not in regions, Globals.regiondict[seed].adj):
-        if (placement := state.placements.get(region, 0)) != 0:
+    units.add(seed)
+    for unit in filter(lambda unit: unit not in units, Globals.unitdict[seed].adj):
+        if (placement := state.placements.get(unit, 0)) != 0:
             adjdists.add(placement)
         else:
-            downstream = generateUnplaced(state, borders, region, regions, adjdists)
-            regions |= downstream[0]
+            downstream = generateUnplaced(state, borders, unit, units, adjdists)
+            units |= downstream[0]
             adjdists |= downstream[1]
-            
-        # Shortcut out of the loop if we've seen at least two districts
-        if len(adjdists) > 1:
-            return regions, adjdists
-    
-    return regions, adjdists
 
-def generateDisconnectedDistricts(state: State, district: District) -> set:
-    # Get all regions adjacent to the current district which are not in a district
-    borders = { region for region in district.adj if not state.isPlaced(region) }
+        # Shortcut out of the loop if we've seen at least two groups
+        if len(adjdists) > 1:
+            return units, adjdists
+
+    return units, adjdists
+
+
+def generateDisconnectedGroups(state: State, group: Group) -> set:
+    # Get all units adjacent to the current group which are not in a group
+    borders = {unit for unit in group.adj if not state.isPlaced(unit)}
 
     while len(borders) > 0:
         unplaced, adjdists = generateUnplaced(state, borders)
@@ -74,44 +97,48 @@ def generateDisconnectedDistricts(state: State, district: District) -> set:
         if len(adjdists) == 1:
             yield unplaced
 
+
 g_callback = None
 doprint = False
 
+
 def doStep(state: State) -> State:
-    region, district = getNext(state)
+    unit, group = getNext(state)
 
     if doprint:
-        print("{}: Adding {}".format(district.index, region))
-        print("  Average distance {:.2f}".format(district.getAverageDistance(region)))
+        print("{}: Adding {}".format(group.index, unit))
+        print("  Average distance {:.2f}".format(group.getAverageDistance(unit)))
 
-    addToDistrict(state, region, district)
+    addToGroup(state, unit, group)
 
     if doprint:
         state.printState()
-    
-    # If every district has some adjacent regions, we can start checking for enclosures
-    if all(len(district.adj) > 0 for district in state.districts):
-        for unplacedregions in generateDisconnectedDistricts(state, district):
+
+    # If every group has some adjacent units, we can start checking for enclosures
+    if all(len(group.adj) > 0 for group in state.groups):
+        for unplacedunits in generateDisconnectedGroups(state, group):
             if doprint:
-                print("{}: enclosed {}".format(district.index, unplacedregions))
+                print("{}: enclosed {}".format(group.index, unplacedunits))
                 state.printState()
-            for unplaced in unplacedregions:
-                addToDistrict(state, Globals.regiondict[unplaced], district)
+            for unplaced in unplacedunits:
+                addToGroup(state, Globals.unitdict[unplaced], group)
 
     if Globals.callback:
         Globals.callback(state.getUpdateDataFrame())
 
     return state
-    
-def solve(numDist, metricID = 0, scale = 0, callback = None) -> dict:
+
+
+def solve(numDist, metricID=0, scale=0, callback=None) -> dict:
     Globals.set(metricID, scale, callback)
 
-    #Start the solver!
+    # Start the solver!
     state = State(numDist=numDist)
-    while len(state.unplacedRegions) != 0 or any(district.metric > state.maxAcceptableMetric for district in state.districts):
+    while len(state.unplacedUnits) != 0 or any(group.metric > state.maxAcceptableMetric for group in state.groups):
         state = doStep(state)
 
     state.printResult()
+
 
 if __name__ == "__main__":
     solve(3)

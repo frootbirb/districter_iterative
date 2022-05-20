@@ -1,6 +1,5 @@
-
 import sys
-import csv 
+import csv
 from numpy import mean
 from typing import Union
 
@@ -9,33 +8,34 @@ import assets.counties.name_to_abbrev as county_converter
 
 # --- Globals ----------------------------------------------------------------------------------------------------------
 
+
 class Globals:
-    #           0            1          2            3            4           5
-    metrics = ["Population","Firearms","Area (mi2)","Land (mi2)","GDP ($1m)","Food ($1k)"]
+    metrics = ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
     scales = ["states", "counties"]
-    
+
     scale = None
     allowed = None
+    callback = None
 
-    def set(metricID: Union[str, int], scale: Union[str, int], callback = None) -> None:
+    def set(metricID: Union[str, int], scale: Union[str, int], callback=None) -> None:
         # Enable MetricID to be set as a string or an index
         if isinstance(scale, str):
             newscale = scale
         elif isinstance(scale, int):
             newscale = Globals.scales[scale]
-        
+
         scaleChanged = newscale != Globals.scale
         Globals.scale = newscale
 
-        if (Globals.scale == "states"):
+        if Globals.scale == "states":
             Globals.banned = []
             Globals.abbrev_to_name = state_converter.abbrev_to_name
-        elif (Globals.scale == "counties"):
-            Globals.banned = ["Firearms","Area (mi2)","Land (mi2)","GDP ($1m)","Food ($1k)"]
+        elif Globals.scale == "counties":
+            Globals.banned = ["Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
             Globals.abbrev_to_name = county_converter.abbrev_to_name
-            
+
         Globals.allowed = [metric for metric in Globals.metrics if metric not in Globals.banned]
-            
+
         # Enable MetricID to be set as a string or an index
         if isinstance(metricID, str):
             Globals.metricID = metricID
@@ -44,21 +44,23 @@ class Globals:
 
         if callback:
             Globals.callback = callback
-        
+
         if scaleChanged:
-            Globals.regiondict = readFile()
-            Globals.regionlist = Globals.regiondict.values()
+            Globals.unitdict = readFile()
+            Globals.unitlist = Globals.unitdict.values()
+
 
 # --- Data structures --------------------------------------------------------------------------------------------------
 
-class Region:
+
+class Unit:
     def __init__(self, code, metrics, adj) -> None:
         self.code = code
         self.metrics = metrics
         self.adj = set(adj)
         self.name = Globals.abbrev_to_name[code]
         self.hash = hash(code)
-        self.distances = { }
+        self.distances = {}
 
     @property
     def metric(self) -> int:
@@ -76,9 +78,10 @@ class Region:
     def __hash__(self) -> str:
         return self.hash
 
-class District:
+
+class Group:
     def __init__(self, index) -> None:
-        self.regions = set()
+        self.units = set()
         self.adj = set()
         self.metric = 0
         self.index = index
@@ -87,79 +90,81 @@ class District:
         return self.metric > other.metric
 
     def empty(self) -> bool:
-        return len(self.regions) == 0
+        return len(self.units) == 0
 
-    def addRegion(self, region: Region):
-        # append the region into this district
-        self.regions.add(region)
-        # add the region's metric to the district's metric
-        self.metric += region.metric
-        # remove this region from the adjacency list
-        self.adj.discard(region.code)
-        # for each adjacent region, add it to the adjacency list if it's not already in the district
-        self.adj |= (region.adj - self.regions)
+    def addUnit(self, unit: Unit):
+        # append the unit into this group
+        self.units.add(unit)
+        # add the unit's metric to the group's metric
+        self.metric += unit.metric
+        # remove this unit from the adjacency list
+        self.adj.discard(unit.code)
+        # for each adjacent unit, add it to the adjacency list if it's not already in the group
+        self.adj |= unit.adj - self.units
 
-    def removeRegion(self, region: Region):
-        # remove the region from this district
-        self.regions.remove(region)
-        # remove the region's metric from the district's metric
-        self.metric -= region.metric
-        # if this region is adjacent to the district, add it to the adjacency list
-        if any(reg in self.regions for reg in region.adj):
-            self.adj.add(region.code)
-        # remove regions that are no longer adjacent
-        for adjregion in region.adj - self.regions:
-            if all(reg not in self.regions for reg in region.adj):
-                self.adj.remove(adjregion)
+    def removeUnit(self, unit: Unit):
+        # remove the unit from this group
+        self.units.remove(unit)
+        # remove the unit's metric from the group's metric
+        self.metric -= unit.metric
+        # if this unit is adjacent to the group, add it to the adjacency list
+        if any(reg in self.units for reg in unit.adj):
+            self.adj.add(unit.code)
+        # remove units that are no longer adjacent
+        for adjunit in unit.adj - self.units:
+            if all(reg not in self.units for reg in unit.adj):
+                self.adj.remove(adjunit)
 
-    def canLose(self, region: Region) -> bool:
-        border = region.adj & self.regions
+    def canLose(self, unit: Unit) -> bool:
+        border = unit.adj & self.units
         if not border:
             return True
-        toCheck = { border.pop() }
+        toCheck = {border.pop()}
         while toCheck:
             selected = toCheck.pop()
             border.discard(selected)
-            toCheck |= Globals.regiondict[selected].adj & border
+            toCheck |= Globals.unitdict[selected].adj & border
 
-        # If we can reach all the adjacent districts, we're good
+        # If we can reach all the adjacent groups, we're good
         return len(border) == 0
 
-    def getAverageDistance(self, region: Region) -> float:
-        return mean([region.distances.get(inRegion) for inRegion in self.regions if region.distances.get(inRegion, False)])
+    def getAverageDistance(self, unit: Unit) -> float:
+        return mean([unit.distances.get(inUnit) for inUnit in self.units if unit.distances.get(inUnit, False)])
+
 
 class State:
     def __init__(self, numDist) -> None:
         self.placements = {}
-        self.unplacedRegions = sorted(Globals.regionlist, key=lambda region: region.metric, reverse=True)
-        self.districts = [District(i+1) for i in range(numDist)]
+        self.unplacedUnits = sorted(Globals.unitlist, key=lambda unit: unit.metric, reverse=True)
+        self.groups = [Group(i + 1) for i in range(numDist)]
 
-        regionMetrics = [ region.metric for region in Globals.regionlist ]
-        self.sumRegionMetrics = sum(regionMetrics)
-        equalSplit = self.sumRegionMetrics/numDist
-        largestRegionMetric = max(regionMetrics)
-        # The maximum acceptable size is 120% of an even split, or the largest single region
-        self.maxAcceptableMetric = max(equalSplit * 1.2, largestRegionMetric)
+        unitMetrics = [unit.metric for unit in Globals.unitlist]
+        self.sumUnitMetrics = sum(unitMetrics)
+        equalSplit = self.sumUnitMetrics / numDist
+        largestUnitMetric = max(unitMetrics)
+        # TODO confirm that this is possible before starting?
+        # The maximum acceptable size is 120% of an even split, or the largest single unit
+        self.maxAcceptableMetric = max(equalSplit * 1.2, largestUnitMetric)
         # The minimum acceptable size is 80% of an even split
         self.minAcceptableMetric = equalSplit * 0.8
 
-    def isPlaced(self, region: Region) -> bool:
-        return self.placements.get(region, 0) != 0
-    
-    def getDistrictFor(self, region: Region) -> District:
-        index = self.placements.get(region, 0)-1
-        return None if index >= len(self.districts) else self.districts[index]
+    def isPlaced(self, unit: Unit) -> bool:
+        return self.placements.get(unit, 0) != 0
 
-    def hasAnyUnplacedAdjacent(self, district: District) -> bool:
-        return any(self.placements.get(region, 0) == 0 for region in district.adj)
+    def getGroupFor(self, unit: Unit) -> Group:
+        index = self.placements.get(unit, 0) - 1
+        return None if index >= len(self.groups) else self.groups[index]
+
+    def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
+        return any(self.placements.get(unit, 0) == 0 for unit in group.adj)
 
     def getDummyDataFrame():
-        result = { new_list: [] for new_list in ["region","code","district","metric"] }
-        for region in Globals.regionlist:
-            result["region"].append(region.name)
-            result["code"].append(region.code)
-            result["district"].append('0')
-            result["metric"].append(region.metric)
+        result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
+        for unit in Globals.unitlist:
+            result["unit"].append(unit.name)
+            result["code"].append(unit.code)
+            result["group"].append("0")
+            result["metric"].append(unit.metric)
 
         return result
 
@@ -167,116 +172,139 @@ class State:
         result = State.getDummyDataFrame()
 
         for placement in self.placements.values():
-            result["district"][2] = str(placement)
+            result["group"][2] = str(placement)
 
         return result
-    
+
     def getUpdateDataFrame(self):
-        return sorted(([region.name, region.metric, str(self.placements.get(region, 0))] for region in Globals.regionlist))
+        return sorted(([unit.name, unit.metric, str(self.placements.get(unit, 0))] for unit in Globals.unitlist))
 
     def getDummyUpdateDataFrame():
-        return sorted(([region.name, region.metric, '0'] for region in Globals.regionlist))
+        return sorted(([unit.name, unit.metric, "0"] for unit in Globals.unitlist))
 
     def __percent(self, val: float) -> str:
-        return "{:.2f}%".format(100*val/self.sumRegionMetrics)
+        return "{:.2f}%".format(100 * val / self.sumUnitMetrics)
 
     def __numWithPercent(self, val: float) -> str:
-        return "{:,.2f} ({})".format(  val, self.__percent(val))
+        return "{:,.2f} ({})".format(val, self.__percent(val))
 
     def printResult(self):
         print("--------------- + Complete + ---------------")
-        smallest = min(self.districts).metric
-        largest = max(self.districts).metric
-        print("Final spread: {}, from {} to {}".format(
-            self.__numWithPercent(largest - smallest),
-            self.__numWithPercent(smallest),
-            self.__numWithPercent(largest)
-        ))
-        print("Acceptable sizes: {} to {}".format(
-            self.__numWithPercent(self.minAcceptableMetric),
-            self.__numWithPercent(self.maxAcceptableMetric)
-        ))
+        print("Created {} groups of {} with criteria {}".format(len(self.groups), Globals.scale, Globals.metricID))
+        smallest = min(self.groups).metric
+        largest = max(self.groups).metric
+        print(
+            "Final spread: {}, from {} to {}".format(
+                self.__numWithPercent(largest - smallest),
+                self.__numWithPercent(smallest),
+                self.__numWithPercent(largest),
+            )
+        )
+        print(
+            "Acceptable sizes: {} to {}".format(
+                self.__numWithPercent(self.minAcceptableMetric),
+                self.__numWithPercent(self.maxAcceptableMetric),
+            )
+        )
         self.printState()
 
     def printState(self):
         results = []
-        for district in sorted(self.districts, reverse=True):
-            results.append((
-                "District {} ({}):".format(district.index, self.__percent(district.metric)),
-                "|".join(sorted(region.code for region in district.regions))
-            ))
-        
-        if len(self.unplacedRegions) > 0:
-            results.append((
-                "Unplaced ({}):".format(self.__percent(sum(region.metric for region in self.unplacedRegions))),
-                "|".join(sorted(region.code for region in self.unplacedRegions))
-            ))
+        for group in sorted(self.groups, reverse=True):
+            results.append(
+                (
+                    "Group {} ({}):".format(group.index, self.__percent(group.metric)),
+                    "|".join(sorted(unit.code for unit in group.units)),
+                )
+            )
+
+        if len(self.unplacedUnits) > 0:
+            results.append(
+                (
+                    "Unplaced ({}):".format(self.__percent(sum(unit.metric for unit in self.unplacedUnits))),
+                    "|".join(sorted(unit.code for unit in self.unplacedUnits)),
+                )
+            )
 
         length = len(max(results, key=lambda item: len(item[0]))[0])
         for entry in results:
             print(("{:" + str(length) + "} {}").format(*entry))
         print()
-        
+
+
 # --- Helper file reading function -------------------------------------------------------------------------------------
 
-def getDistanceStep(distCode, regions):
+
+def getDistanceStep(distCode, units):
     dist = 0
-    distances = {region: (0 if region == distCode else -1) for region in regions}
+    distances = {unit: (0 if unit == distCode else -1) for unit in units}
     changed = True
     while changed:
         changed = False
-        for region in (region for region in regions if region.code in distances and distances[region.code] == dist):
-            for code in (code for code in region.adj if code in distances and distances[code] == -1):
+        for unit in (unit for unit in units if unit.code in distances and distances[unit.code] == dist):
+            for code in (code for code in unit.adj if code in distances and distances[code] == -1):
                 changed = True
                 distances[code] = dist + 1
         dist += 1
-        print("Calculating distances: {:10.4f}%".format(100*list(regions.keys()).index(distCode)/len(regions)), end="\r")
+        print(
+            "Calculating distances: {:10.4f}%".format(100 * list(units.keys()).index(distCode) / len(units)),
+            end="\r",
+        )
 
-    return { code: dist for code, dist in distances.items() if dist > 0 }
+    return {code: dist for code, dist in distances.items() if dist > 0}
 
-def populateDistances(regions):
+
+def populateDistances(units):
     # Attempt to read in distance
     try:
-        with open("assets/" + Globals.scale + "/distance.csv", encoding='utf8', newline='') as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=',')
+        with open("assets/" + Globals.scale + "/distance.csv", encoding="utf8", newline="") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=",")
             for row in reader:
                 name = row.pop("name")
-                regions[name].distances = { code: int(dist) for code, dist in row.items() if dist }
+                units[name].distances = {code: int(dist) for code, dist in row.items() if dist}
     except:
-        for code, region in regions.items():
-            region.distances = getDistanceStep(code, regions)
+        for code, unit in units.items():
+            unit.distances = getDistanceStep(code, units)
         print()
-        with open("assets/" + Globals.scale + "/distance.csv", "w", encoding='utf8', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, delimiter=',', fieldnames=["name"] + list(regions.keys()))
+        with open(
+            "assets/" + Globals.scale + "/distance.csv",
+            "w",
+            encoding="utf8",
+            newline="",
+        ) as csvfile:
+            writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=["name"] + list(units.keys()))
             writer.writeheader()
-            for region in regions:
-                newRow = region.distances.copy()
-                newRow["name"] = region.code
+            for unit in units:
+                newRow = unit.distances.copy()
+                newRow["name"] = unit.code
                 writer.writerow(newRow)
+
 
 def readFile():
     # Read in adjacency
     adj = {}
-    with open("assets/" + Globals.scale + "/adjacency.csv", encoding='utf8', newline='') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',')
+    with open("assets/" + Globals.scale + "/adjacency.csv", encoding="utf8", newline="") as csvfile:
+        reader = csv.reader(csvfile, delimiter=",")
         for row in reader:
             adj[row[0]] = row[1:]
 
-    # Read in regions
-    regions = {}
-    with open("assets/" + Globals.scale + "/data.tsv", encoding='utf8', newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter='\t')
+    # Read in units
+    units = {}
+    with open("assets/" + Globals.scale + "/data.tsv", encoding="utf8", newline="") as csvfile:
+        reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
-            code = row["Region"]
+            code = row["Unit"]
             # Skip the Totals row
             if code == "Total":
                 continue
-            # add the region and metrics
-            metrics = {key: int(value.strip().replace(',','')) for (key, value) in row.items() if key in Globals.allowed}
-            regions[code] = Region(code, metrics, adj[code])
+            # add the unit and metrics
+            metrics = {
+                key: int(value.strip().replace(",", "")) for (key, value) in row.items() if key in Globals.allowed
+            }
+            units[code] = Unit(code, metrics, adj[code])
 
-    populateDistances(regions)
+    populateDistances(units)
 
-    sys.setrecursionlimit(max(len(regions), 1000))
+    sys.setrecursionlimit(max(len(units), 1000))
 
-    return regions
+    return units
