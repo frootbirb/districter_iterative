@@ -18,24 +18,24 @@ def profile(string):
     stats.print_stats(10)
 
 
-def getNextParam(scale):
-    for numUnit in range(1, 8):
+def getNextParam(scale, range):
+    for numGroup in range:
         for metricID in Globals.allowed:
-            yield numUnit, metricID, scale
+            yield numGroup, metricID, scale
 
 
-def doTests(scale):
+def doTests(scale, range):
     Globals.set(0, scale=scale)
-    for numUnit, metricID, scale in getNextParam(scale):
-        print("Created {} groups with criteria {}".format(numUnit, scale, metricID))
-        solve(numUnit, metricID, scale)
+    for numGroup, metricID, scale in getNextParam(scale, range):
+        print("Created {} groups with criteria {}".format(numGroup, metricID))
+        solve(numGroup, metricID, scale)
 
 
-def doParallelTests(scale):
+def doParallelTests(scale, range):
     Globals.set(0, scale=scale)
     with Pool(8) as p:
-        p.starmap(solve, getNextParam(scale))
+        p.starmap(solve, getNextParam(scale, range))
 
 
 if __name__ == "__main__":
-    profile("doTests(0)")
+    profile("doTests(1, range(1, 6))")
