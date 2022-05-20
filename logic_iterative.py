@@ -16,10 +16,8 @@ def getNext(state: State) -> tuple[Unit, Group]:
     )
 
     # If one of the groups is too big, we will allow stealing from it
-    # If this group has no available adjacent units, we will allow stealing from any larger neighbor
-    noneAdjacent = not state.hasAnyUnplacedAdjacent(group) and not group.empty()
     for otherdist in state.groups:
-        if otherdist.metric > state.maxAcceptableMetric or (otherdist.metric > group.metric and noneAdjacent):
+        if otherdist.metric > state.maxAcceptableMetric:
             baseUnits += {unit for unit in otherdist.units if otherdist.canLose(unit)}
 
     # Get the units which might be viable - unplaced units adjacent to a given group, or those with no adjacent, like AK
@@ -32,8 +30,13 @@ def getNext(state: State) -> tuple[Unit, Group]:
         max(
             units,
             key=lambda unit: (
+                # Prioritize units that aren't in a district currently
+                -state.isPlaced(unit),
+                # Prioritize units that don't push this over the max metric
                 unit.metric + group.metric > state.maxAcceptableMetric,
+                # Prioritize stealing from a larger group
                 state.getGroupFor(unit).metric,
+                # Prioritize shorter distance
                 -group.getAverageDistance(unit),
                 unit.metric,
             ),
@@ -58,11 +61,7 @@ def removeFromGroup(state: State, unit: Unit, group: Group) -> None:
 
 
 def generateUnplaced(
-    state: State,
-    borders: set,
-    seed: Unit = None,
-    units: set = None,
-    adjdists: set = None,
+    state: State, borders: set, seed: Unit = None, units: set = None, adjdists: set = None
 ) -> tuple[set, set]:
     if not seed:
         seed = next(iter(borders))
@@ -119,9 +118,10 @@ def doStep(state: State) -> State:
         for unplacedunits in generateDisconnectedGroups(state, group):
             if doprint:
                 print("{}: enclosed {}".format(group.index, unplacedunits))
-                state.printState()
             for unplaced in unplacedunits:
                 addToGroup(state, Globals.unitdict[unplaced], group)
+            if doprint:
+                state.printState()
 
     if Globals.callback:
         Globals.callback(state.getUpdateDataFrame())
@@ -141,4 +141,4 @@ def solve(numDist, metricID=0, scale=0, callback=None) -> dict:
 
 
 if __name__ == "__main__":
-    solve(3)
+    solve(4, metricID="Area (mi2)")
