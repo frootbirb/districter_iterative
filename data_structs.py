@@ -213,7 +213,8 @@ class State:
         for group in sorted(self.groups, reverse=True):
             results.append(
                 (
-                    "Group {} ({}):".format(group.index, self.__percent(group.metric)),
+                    "Group {}".format(group.index),
+                    self.__percent(group.metric),
                     "|".join(sorted(unit.code for unit in group.units)),
                 )
             )
@@ -221,14 +222,19 @@ class State:
         if len(self.unplacedUnits) > 0:
             results.append(
                 (
-                    "Unplaced ({}):".format(self.__percent(sum(unit.metric for unit in self.unplacedUnits))),
+                    "Unplaced",
+                    self.__percent(sum(unit.metric for unit in self.unplacedUnits)),
                     "|".join(sorted(unit.code for unit in self.unplacedUnits)),
                 )
             )
 
         length = len(max(results, key=lambda item: len(item[0]))[0])
-        for entry in results:
-            print(("{:" + str(length) + "} {}").format(*entry))
+        if Globals.scale == Globals.scales[0]:
+            for entry in results:
+                print(("{:" + str(length) + "} ({}): {}").format(*entry))
+        else:
+            for entry in results:
+                print(("{:" + str(length) + "}  ({})").format(*entry))
         print()
 
 

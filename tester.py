@@ -38,4 +38,4 @@ def doParallelTests(scale, range):
 
 
 if __name__ == "__main__":
-    profile("doTests(1, range(1, 6))")
+    profile("doTests(1, range(2, 2))")
