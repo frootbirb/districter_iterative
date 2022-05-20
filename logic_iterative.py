@@ -1,15 +1,22 @@
+from urllib.parse import MAX_CACHE_SIZE
 from data_structs import State, Unit, Group, Globals
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
+doprint = False
+
 
 def sorter(state: State, group: Group, unit: Unit):
+    oldGroupMetric = state.getGroupFor(unit).metric
     return (
-        -state.isPlaced(unit),
+        # Prioritize unplaced units
+        not state.isPlaced(unit),
         # Prioritize units that don't push this over the max metric
-        unit.metric + group.metric > state.maxAcceptableMetric,
+        unit.metric + group.metric < state.maxAcceptableMetric,
+        # Prioritize units that don't push the target under the minimum size
+        oldGroupMetric - unit.metric > state.minAcceptableMetric,
         # Prioritize stealing from a larger group
-        state.getGroupFor(unit).metric,
+        oldGroupMetric,
         # Prioritize shorter distance
         -group.getAverageDistance(unit),
         unit.metric,
@@ -40,6 +47,12 @@ def getNext(state: State) -> tuple[Unit, Group]:
         units = baseUnits
     else:
         units = (unit for unit in baseUnits if (unit in group.adj or len(unit.adj) == 0))
+
+    # TODO TMP
+    if doprint:
+        units = list(units)
+        print(group.index)
+        input(sorted(units, key=lambda unit: sorter(state, group, unit), reverse=True))
 
     return (
         max(units, key=lambda unit: sorter(state, group, unit)),
@@ -100,7 +113,6 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
 
 
 g_callback = None
-doprint = False
 
 
 def doStep(state: State) -> State:
@@ -108,7 +120,6 @@ def doStep(state: State) -> State:
 
     if doprint:
         print("{}: Adding {}".format(group.index, unit))
-        print("  Average distance {:.2f}".format(group.getAverageDistance(unit)))
 
     addToGroup(state, unit, group)
 
