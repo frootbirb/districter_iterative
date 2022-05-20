@@ -26,10 +26,15 @@ def getNextParam(scale):
 
 def doTests(scale):
     Globals.set(0, scale=scale)
-    """with Pool(8) as p:
-        p.starmap(solve, getNextParam(scale))"""
     for numDist, metricID, scale in getNextParam(scale):
+        print("Created {} groups of {} with criteria {}".format(numDist, scale, metricID))
         solve(numDist, metricID, scale)
+
+
+def doParallelTests(scale):
+    Globals.set(0, scale=scale)
+    with Pool(8) as p:
+        p.starmap(solve, getNextParam(scale))
 
 
 if __name__ == "__main__":
