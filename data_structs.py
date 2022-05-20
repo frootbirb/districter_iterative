@@ -191,15 +191,16 @@ class State:
     def printResult(self):
         print("--------------- + Complete + ---------------")
         print("Created {} groups of {} with criteria {}".format(len(self.groups), Globals.scale, Globals.metricID))
-        smallest = min(self.groups).metric
-        largest = max(self.groups).metric
-        print(
-            "Final spread: {}, from {} to {}".format(
-                self.__numWithPercent(largest - smallest),
-                self.__numWithPercent(smallest),
-                self.__numWithPercent(largest),
+        if len(self.groups) > 1:
+            smallest = min(self.groups).metric
+            largest = max(self.groups).metric
+            print(
+                "Final spread: {}, from {} to {}".format(
+                    self.__numWithPercent(largest - smallest),
+                    self.__numWithPercent(smallest),
+                    self.__numWithPercent(largest),
+                )
             )
-        )
         print(
             "Acceptable sizes: {} to {}".format(
                 self.__numWithPercent(self.minAcceptableMetric),
