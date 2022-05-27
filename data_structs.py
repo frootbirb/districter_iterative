@@ -131,13 +131,13 @@ class Group:
 
     def getAverageDistance(self, unit: Unit) -> float:
         # TODO this is by far the most expensive thing we do
-        avg = mean([unit.distances.get(inUnit) for inUnit in self.units if unit.distances.get(inUnit, False)])
-        return avg if not isnan(avg) else 1000
+        avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        return avg if not isnan(avg) else len(Globals.unitlist)
 
 
 class State:
     def __init__(self, numGroup) -> None:
-        self.placements = {}
+        self.placements = {unit: 0 for unit in Globals.unitlist}
         self.unplacedUnits = sorted(Globals.unitlist, key=lambda unit: unit.metric, reverse=True)
         self.groups = [Group(i + 1) for i in range(numGroup)]
 
@@ -152,14 +152,14 @@ class State:
         self.minAcceptableMetric = equalSplit * 0.8
 
     def isPlaced(self, unit: Unit) -> bool:
-        return self.placements.get(unit, 0) != 0
+        return self.placements[unit] != 0
 
     def getGroupFor(self, unit: Unit) -> Group:
-        index = self.placements.get(unit, 0) - 1
+        index = self.placements[unit] - 1
         return None if index >= len(self.groups) else self.groups[index]
 
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
-        return any(self.placements.get(unit, 0) == 0 for unit in group.adj)
+        return any(self.placements[unit] == 0 for unit in group.adj)
 
     def getDummyDataFrame():
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
@@ -180,7 +180,7 @@ class State:
         return result
 
     def getUpdateDataFrame(self):
-        return sorted(([unit.name, unit.metric, str(self.placements.get(unit, 0))] for unit in Globals.unitlist))
+        return sorted(([unit.name, unit.metric, str(self.placements[unit])] for unit in Globals.unitlist))
 
     def getDummyUpdateDataFrame():
         return sorted(([unit.name, unit.metric, "0"] for unit in Globals.unitlist))
@@ -249,12 +249,12 @@ class State:
 
 def getDistanceStep(distCode, units):
     dist = 0
-    distances = {unit: (0 if unit == distCode else -1) for unit in units}
+    distances = {unit: (0 if unit == distCode else 10e4) for unit in units}
     changed = True
     while changed:
         changed = False
         for unit in (unit for unit in units.values() if unit in distances and distances[unit] == dist):
-            for code in (code for code in unit.adj if code in distances and distances[code] == -1):
+            for code in (code for code in unit.adj if code in distances and distances[code] == 10e4):
                 changed = True
                 distances[code] = dist + 1
         dist += 1
@@ -263,7 +263,7 @@ def getDistanceStep(distCode, units):
             end="\r",
         )
 
-    return {code: dist for code, dist in distances.items() if dist > 0}
+    return distances
 
 
 def populateDistances(units):

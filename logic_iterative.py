@@ -53,7 +53,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
 
 def addToGroup(state: State, unit: Unit, group: Group) -> None:
     group.addUnit(unit)
-    if (placement := state.placements.get(unit, 0)) == 0:
+    if (placement := state.placements[unit]) == 0:
         state.unplacedUnits.remove(unit)
     else:
         state.groups[placement - 1].removeUnit(unit)
@@ -78,7 +78,7 @@ def generateUnplaced(
 
     units.add(seed)
     for unit in filter(lambda unit: unit not in units, seed.adj):
-        if (placement := state.placements.get(unit, 0)) != 0:
+        if (placement := state.placements[unit]) != 0:
             adjgroups.add(placement)
         else:
             downstream = generateUnplaced(state, borders, unit, units, adjgroups)
