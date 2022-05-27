@@ -130,6 +130,7 @@ class Group:
         return len(border) == 0
 
     def getAverageDistance(self, unit: Unit) -> float:
+        # TODO this is by far the most expensive thing we do
         avg = mean([unit.distances.get(inUnit) for inUnit in self.units if unit.distances.get(inUnit, False)])
         return avg if not isnan(avg) else 1000
 
