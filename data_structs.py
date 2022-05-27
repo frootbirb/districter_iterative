@@ -13,7 +13,7 @@ class Globals:
     metrics = ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
     scales = ["states", "counties"]
 
-    printcap = 30
+    printcap = 31
 
     scale = None
     allowed = None
@@ -253,7 +253,7 @@ def getDistanceStep(distCode, units):
     changed = True
     while changed:
         changed = False
-        for unit in (unit for unit in units if unit.code in distances and distances[unit.code] == dist):
+        for unit in (unit for unit in units.values() if unit in distances and distances[unit] == dist):
             for code in (code for code in unit.adj if code in distances and distances[code] == -1):
                 changed = True
                 distances[code] = dist + 1
@@ -286,7 +286,7 @@ def populateDistances(units):
         ) as csvfile:
             writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=["name"] + list(units.keys()))
             writer.writeheader()
-            for unit in units:
+            for unit in units.values():
                 newRow = unit.distances.copy()
                 newRow["name"] = unit.code
                 writer.writerow(newRow)
