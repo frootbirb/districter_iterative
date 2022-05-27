@@ -140,6 +140,7 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
     # Start the solver!
     state = State(numGroup=numGroup)
+    # todo: can this hinge on a "close enough"? e.g. when swapping a district flips the relative positions of two groups?
     while len(state.unplacedUnits) != 0 or any(group.metric > state.maxAcceptableMetric for group in state.groups):
         state = doStep(state)
 
