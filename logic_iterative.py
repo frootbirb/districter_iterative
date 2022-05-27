@@ -1,22 +1,23 @@
-from urllib.parse import MAX_CACHE_SIZE
 from data_structs import State, Unit, Group, Globals
+from multiprocessing import Pool
+from itertools import chain
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
-doprint = False
+doprint = True
 
 
 def sorter(state: State, group: Group, unit: Unit):
-    oldGroupMetric = state.getGroupFor(unit).metric
+    oldGroup = state.getGroupFor(unit)
     return (
         # Prioritize unplaced units
         not state.isPlaced(unit),
         # Prioritize units that don't push this over the max metric
         unit.metric + group.metric < state.maxAcceptableMetric,
         # Prioritize units that don't push the target under the minimum size
-        oldGroupMetric - unit.metric > state.minAcceptableMetric,
+        oldGroup.metric - unit.metric > state.minAcceptableMetric,
         # Prioritize stealing from a larger group
-        oldGroupMetric,
+        oldGroup.metric,
         # Prioritize shorter distance
         -group.getAverageDistance(unit),
         unit.metric,
@@ -24,7 +25,6 @@ def sorter(state: State, group: Group, unit: Unit):
 
 
 def getNext(state: State) -> tuple[Unit, Group]:
-    baseUnits = state.unplacedUnits[:]
 
     group = min(
         state.groups,
@@ -35,29 +35,18 @@ def getNext(state: State) -> tuple[Unit, Group]:
         ),
     )
 
-    # If one of the groups is too big, we will allow stealing from it
-    for othergroup in state.groups:
-        if othergroup.metric > state.maxAcceptableMetric or (
-            othergroup.metric > group.metric and not state.hasAnyUnplacedAdjacent(group)
-        ):
-            baseUnits += {unit for unit in othergroup.units if othergroup.canLose(unit)}
-
-    # Get the units which might be viable - unplaced units adjacent to a given group, or those with no adjacent, like AK
-    if group.empty() or len(group.adj) == 0:
-        units = baseUnits
+    # Get the units which might be viable
+    if group.empty():
+        units = state.unplacedUnits
+    elif any(not state.isPlaced(u) for u in group.adj):
+        units = (Globals.unitdict[unit] for unit in group.adj if not state.isPlaced(unit))
     else:
-        units = (unit for unit in baseUnits if (unit in group.adj or len(unit.adj) == 0))
+        units = chain(
+            (Globals.unitdict[unit] for unit in group.adj if not state.isPlaced(unit) or state.getGroupFor(unit).canLose(unit)),
+            state.unplacedUnits,
+        )
 
-    # TODO TMP
-    if doprint:
-        units = list(units)
-        print(group.index)
-        input(sorted(units, key=lambda unit: sorter(state, group, unit), reverse=True))
-
-    return (
-        max(units, key=lambda unit: sorter(state, group, unit)),
-        group,
-    )
+    return (max(units, key=lambda unit: sorter(state, group, unit)), group)
 
 
 def addToGroup(state: State, unit: Unit, group: Group) -> None:
@@ -85,7 +74,7 @@ def generateUnplaced(
     if not adjgroups:
         adjgroups = set()
 
-    units.add(seed)
+    units.add(Globals.unitdict[seed])
     for unit in filter(lambda unit: unit not in units, Globals.unitdict[seed].adj):
         if (placement := state.placements.get(unit, 0)) != 0:
             adjgroups.add(placement)
@@ -130,9 +119,13 @@ def doStep(state: State) -> State:
     if all(len(group.adj) > 0 for group in state.groups):
         for unplacedunits in generateDisconnectedGroups(state, group):
             if doprint:
-                print("{}: enclosed {}".format(group.index, unplacedunits))
+                unplacedCount = len(unplacedunits)
+                if unplacedCount > Globals.printcap:
+                    print("{}: enclosed {} units".format(group.index, unplacedCount))
+                else:
+                    print("{}: enclosed {}".format(group.index, unplacedunits))
             for unplaced in unplacedunits:
-                addToGroup(state, Globals.unitdict[unplaced], group)
+                addToGroup(state, unplaced, group)
             if doprint:
                 state.printState()
 
@@ -154,4 +147,4 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
 
 if __name__ == "__main__":
-    solve(4, metricID="Area (mi2)")
+    solve(2, scale=1)

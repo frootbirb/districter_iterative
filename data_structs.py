@@ -1,6 +1,6 @@
 import sys
 import csv
-from numpy import mean
+from numpy import mean, isnan
 from typing import Union
 
 import assets.states.name_to_abbrev as state_converter
@@ -12,6 +12,8 @@ import assets.counties.name_to_abbrev as county_converter
 class Globals:
     metrics = ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
     scales = ["states", "counties"]
+
+    printcap = 30
 
     scale = None
     allowed = None
@@ -98,7 +100,7 @@ class Group:
         # add the unit's metric to the group's metric
         self.metric += unit.metric
         # remove this unit from the adjacency list
-        self.adj.discard(unit.code)
+        self.adj.discard(unit)
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
 
@@ -109,13 +111,15 @@ class Group:
         self.metric -= unit.metric
         # if this unit is adjacent to the group, add it to the adjacency list
         if any(adjunit in self.units for adjunit in unit.adj):
-            self.adj.add(unit.code)
+            self.adj.add(unit)
         # remove units that are no longer adjacent
         for adjunit in unit.adj - self.units:
             if all(u not in self.units for u in Globals.unitdict[adjunit].adj):
                 self.adj.remove(adjunit)
 
     def canLose(self, unit: Unit) -> bool:
+        if isinstance(unit, str):
+            unit = Globals.unitdict[unit]
         border = unit.adj & self.units
         if not border:
             return True
@@ -129,7 +133,8 @@ class Group:
         return len(border) == 0
 
     def getAverageDistance(self, unit: Unit) -> float:
-        return mean([unit.distances.get(inUnit) for inUnit in self.units if unit.distances.get(inUnit, False)])
+        avg = mean([unit.distances.get(inUnit) for inUnit in self.units if unit.distances.get(inUnit, False)])
+        return avg if not isnan(avg) else 1000
 
 
 class State:
@@ -212,30 +217,32 @@ class State:
     def printState(self):
         results = []
         for group in sorted(self.groups, reverse=True):
+            count = len(group.units)
             results.append(
                 (
                     "Group {}".format(group.index),
                     self.__percent(group.metric),
-                    "|".join(sorted(unit.code for unit in group.units)),
+                    "{} ({:.2f}%)".format(count, 100 * (count / len(Globals.unitlist)))
+                    if count > Globals.printcap
+                    else "|".join(sorted(unit.code for unit in group.units)),
                 )
             )
 
-        if len(self.unplacedUnits) > 0:
+        count = len(self.unplacedUnits)
+        if count > 0:
             results.append(
                 (
                     "Unplaced",
                     self.__percent(sum(unit.metric for unit in self.unplacedUnits)),
-                    "|".join(sorted(unit.code for unit in self.unplacedUnits)),
+                    "{} units ({:.2f}% of total)".format(count, 100 * (count / len(Globals.unitlist)))
+                    if count > Globals.printcap
+                    else "|".join(sorted(unit.code for unit in self.unplacedUnits)),
                 )
             )
 
         length = len(max(results, key=lambda item: len(item[0]))[0])
-        if Globals.scale == Globals.scales[0]:
-            for entry in results:
-                print(("{:" + str(length) + "} ({}): {}").format(*entry))
-        else:
-            for entry in results:
-                print(("{:" + str(length) + "}  ({})").format(*entry))
+        for entry in results:
+            print(("{:" + str(length) + "} ({}): {}").format(*entry))
         print()
 
 

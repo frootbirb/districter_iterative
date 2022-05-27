@@ -1,7 +1,7 @@
 import cProfile
 import pstats
 from multiprocessing import Pool
-from logic_iterative import getNext, solve, Globals
+from logic_iterative import solve, Globals
 
 # --- Profiler ---------------------------------------------------------------------------------------------------------
 
@@ -38,4 +38,4 @@ def doParallelTests(scale, range):
 
 
 if __name__ == "__main__":
-    profile("doTests(1, range(2, 2))")
+    profile("doTests(0, range(1,6))")
