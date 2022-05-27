@@ -39,10 +39,10 @@ def getNext(state: State) -> tuple[Unit, Group]:
     if group.empty():
         units = state.unplacedUnits
     elif any(not state.isPlaced(u) for u in group.adj):
-        units = (Globals.unitdict[unit] for unit in group.adj if not state.isPlaced(unit))
+        units = (unit for unit in group.adj if not state.isPlaced(unit))
     else:
         units = chain(
-            (Globals.unitdict[unit] for unit in group.adj if not state.isPlaced(unit) or state.getGroupFor(unit).canLose(unit)),
+            (unit for unit in group.adj if not state.isPlaced(unit) or state.getGroupFor(unit).canLose(unit)),
             state.unplacedUnits,
         )
 
@@ -74,8 +74,8 @@ def generateUnplaced(
     if not adjgroups:
         adjgroups = set()
 
-    units.add(Globals.unitdict[seed])
-    for unit in filter(lambda unit: unit not in units, Globals.unitdict[seed].adj):
+    units.add(seed)
+    for unit in filter(lambda unit: unit not in units, seed.adj):
         if (placement := state.placements.get(unit, 0)) != 0:
             adjgroups.add(placement)
         else:

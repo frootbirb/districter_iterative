@@ -48,18 +48,17 @@ class Globals:
             Globals.callback = callback
 
         if scaleChanged:
-            Globals.unitdict = readFile()
-            Globals.unitlist = Globals.unitdict.values()
+            Globals.unitlist = readFile()
 
 
 # --- Data structures --------------------------------------------------------------------------------------------------
 
 
 class Unit:
-    def __init__(self, code, metrics, adj) -> None:
+    def __init__(self, code, metrics) -> None:
         self.code = code
         self.metrics = metrics
-        self.adj = set(adj)
+        self.adj = set()
         self.name = Globals.abbrev_to_name[code]
         self.hash = hash(code)
         self.distances = {}
@@ -114,12 +113,10 @@ class Group:
             self.adj.add(unit)
         # remove units that are no longer adjacent
         for adjunit in unit.adj - self.units:
-            if all(u not in self.units for u in Globals.unitdict[adjunit].adj):
+            if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
 
     def canLose(self, unit: Unit) -> bool:
-        if isinstance(unit, str):
-            unit = Globals.unitdict[unit]
         border = unit.adj & self.units
         if not border:
             return True
@@ -127,7 +124,7 @@ class Group:
         while toCheck:
             selected = toCheck.pop()
             border.discard(selected)
-            toCheck |= Globals.unitdict[selected].adj & border
+            toCheck |= selected.adj & border
 
         # If we can reach all the adjacent groups, we're good
         return len(border) == 0
@@ -315,10 +312,15 @@ def readFile():
             metrics = {
                 key: int(value.strip().replace(",", "")) for (key, value) in row.items() if key in Globals.allowed
             }
-            units[code] = Unit(code, metrics, adj[code])
+            units[code] = Unit(code, metrics)
+
+    # Put adjacency in the units
+    for unit in units.values():
+        for adjacent in adj[unit]:
+            unit.adj.add(units[adjacent])
 
     populateDistances(units)
 
     sys.setrecursionlimit(max(len(units), 1000))
 
-    return units
+    return units.values()
