@@ -1,5 +1,4 @@
 from data_structs import State, Unit, Group, Globals
-from multiprocessing import Pool
 from itertools import chain
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
@@ -9,10 +8,10 @@ doprint = False
 
 def sorter(state: State, group: Group, unit: Unit):
     oldGroup = state.getGroupFor(unit)
-    # TODO can this be optimized?
+    # TODO can this be optimized? Call methods less often, or cache?
     return (
         # Prioritize unplaced units
-        not state.isPlaced(unit),
+        state.placements[unit] == 0,
         # Prioritize units that don't push this over the max metric
         unit.metric + group.metric < state.maxAcceptableMetric,
         # Prioritize units that don't push the target under the minimum size
@@ -39,11 +38,11 @@ def getNext(state: State) -> tuple[Unit, Group]:
     # Get the units which might be viable
     if group.empty():
         units = state.unplacedUnits
-    elif any(not state.isPlaced(u) for u in group.adj):
-        units = (unit for unit in group.adj if not state.isPlaced(unit))
+    elif any(state.placements[u] == 0 for u in group.adj):
+        units = (unit for unit in group.adj if state.placements[unit] == 0)
     else:
         units = chain(
-            (unit for unit in group.adj if not state.isPlaced(unit) or state.getGroupFor(unit).canLose(unit)),
+            (unit for unit in group.adj if state.placements[unit] == 0 or state.getGroupFor(unit).canLose(unit)),
             state.unplacedUnits,
         )
 
@@ -65,41 +64,40 @@ def removeFromGroup(state: State, unit: Unit, group: Group) -> None:
     state.placements[unit] = 0
 
 
-def generateUnplaced(
-    state: State, borders: set, seed: Unit = None, units: set = None, adjgroups: set = None
-) -> tuple[set, set]:
-    if not seed:
-        seed = next(iter(borders))
-    if not units:
-        units = set()
-    if not adjgroups:
-        adjgroups = set()
-
-    units.add(seed)
-    for unit in filter(lambda unit: unit not in units, seed.adj):
-        if (placement := state.placements[unit]) != 0:
-            adjgroups.add(placement)
-        else:
-            downstream = generateUnplaced(state, borders, unit, units, adjgroups)
-            units |= downstream[0]
-            adjgroups |= downstream[1]
-
-        # Shortcut out of the loop if we've seen at least two groups
-        if len(adjgroups) > 1:
-            return units, adjgroups
-
-    return units, adjgroups
-
-
 def generateDisconnectedGroups(state: State, group: Group) -> set:
     # Get all units adjacent to the current group which are not in a group
-    borders = {unit for unit in group.adj if not state.isPlaced(unit)}
+    borders = []
+    invalid = set()
+    placed = set()
+    biggest = max(Globals.unitlist, key=lambda u: u.metric)
+    for seed in group.adj:
+        if state.placements[seed] != 0 or seed in invalid or seed in placed:
+            continue
 
-    while len(borders) > 0:
-        unplaced, adjgroups = generateUnplaced(state, borders)
-        borders -= unplaced
-        if len(adjgroups) == 1:
-            yield unplaced
+        newDisconnect = {seed}
+        toCheck = set(seed.adj)
+        while len(toCheck) > 0:
+            # TODO this is super slow - is it better to just not use it?
+            unit = min(toCheck, key=lambda u: (u not in invalid, state.placements[u] == 0, u.distances[biggest]))
+            toCheck.discard(unit)
+            #unit = toCheck.pop()
+
+            # We've hit one of our invalid groups or a placed unit - throw out this group
+            if unit in invalid or (place := state.placements[unit]) != 0 and place != group.index:
+                invalid |= newDisconnect
+                newDisconnect = None
+                break
+            # This unit is unplaced
+            elif place == 0:
+                newDisconnect.add(unit)
+                toCheck |= (unit.adj - newDisconnect)
+        
+        if newDisconnect:
+            borders.append(newDisconnect)
+            placed |= newDisconnect
+    
+    for border in borders:
+        yield border
 
 
 g_callback = None
@@ -149,4 +147,4 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
 
 if __name__ == "__main__":
-    solve(1, scale=0)
+    solve(5, scale=0)

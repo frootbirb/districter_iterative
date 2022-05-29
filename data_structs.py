@@ -130,7 +130,7 @@ class Group:
         return len(border) == 0
 
     def getAverageDistance(self, unit: Unit) -> float:
-        # TODO this is by far the most expensive thing we do
+        # TODO this is by far the most expensive thing we do - can we bring back the better version?
         # avg = mean([unit.distances[inUnit] for inUnit in self.units])
         avg = sum(1 for u in unit.adj if u in self.units)
         return avg if not isnan(avg) else len(Globals.unitlist)
@@ -151,9 +151,6 @@ class State:
         self.maxAcceptableMetric = max(equalSplit * 1.2, largestUnitMetric)
         # The minimum acceptable size is 80% of an even split
         self.minAcceptableMetric = equalSplit * 0.8
-
-    def isPlaced(self, unit: Unit) -> bool:
-        return self.placements[unit] != 0
 
     def getGroupFor(self, unit: Unit) -> Group:
         index = self.placements[unit] - 1
