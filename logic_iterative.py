@@ -20,7 +20,6 @@ def sorter(state: State, group: Group, unit: Unit):
         # Prioritize stealing from a larger group
         oldGroup.metric,
         # Prioritize shorter distance
-        #sum(1 for u in unit.adj if u in group.units),
         -group.getAverageDistance(unit),
         unit.metric,
     )
@@ -150,4 +149,4 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
 
 if __name__ == "__main__":
-    solve(2, scale=0)
+    solve(1, scale=0)

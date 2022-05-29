@@ -131,7 +131,8 @@ class Group:
 
     def getAverageDistance(self, unit: Unit) -> float:
         # TODO this is by far the most expensive thing we do
-        avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        # avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        avg = sum(1 for u in unit.adj if u in self.units)
         return avg if not isnan(avg) else len(Globals.unitlist)
 
 
