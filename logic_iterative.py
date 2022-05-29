@@ -131,7 +131,7 @@ def doStep(state: State) -> State:
     if Globals.callback:
         Globals.callback(state.getUpdateDataFrame())
 
-    return state
+    return state, (unit, group.index)
 
 
 def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
@@ -139,13 +139,14 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
     # Start the solver!
     state = State(numGroup=numGroup)
-    previousStates = []
-    while (len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)) and state.placements not in previousStates:
-        previousStates.insert(0, state.placements.copy())
-        if len(previousStates) > 5:
-            previousStates.pop()
+    previousMoves = []
+    last = (0,0)
+    while (len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)) and last not in previousMoves:
+        previousMoves.insert(0, last)
+        if len(previousMoves) > 5:
+            previousMoves.pop()
 
-        state = doStep(state)
+        state, last = doStep(state)
 
     state.printResult()
 
