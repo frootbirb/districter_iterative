@@ -69,7 +69,6 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
     borders = []
     invalid = set()
     placed = set()
-    biggest = max(Globals.unitlist, key=lambda u: u.metric)
     for seed in group.adj:
         if state.placements[seed] != 0 or seed in invalid or seed in placed:
             continue
@@ -78,7 +77,7 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
         toCheck = set(seed.adj)
         while len(toCheck) > 0:
             # TODO this is super slow - is it better to just not use it?
-            unit = min(toCheck, key=lambda u: (u not in invalid, state.placements[u] == 0, u.distances[biggest]))
+            unit = min(toCheck, key=lambda u: (u not in invalid, state.placements[u] == 0, u.distances[Globals.biggest]))
             toCheck.discard(unit)
             #unit = toCheck.pop()
 

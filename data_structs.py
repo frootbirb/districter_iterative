@@ -49,6 +49,7 @@ class Globals:
 
         if scaleChanged:
             Globals.unitlist = readFile()
+            Globals.biggest = max(Globals.unitlist, key=lambda u: u.metric)
 
 
 # --- Data structures --------------------------------------------------------------------------------------------------
@@ -86,6 +87,7 @@ class Group:
         self.adj = set()
         self.metric = 0
         self.index = index
+        self.distances = {u: 0 for u in Globals.unitlist}
 
     def __gt__(self, other) -> bool:
         return self.metric > other.metric
@@ -102,6 +104,7 @@ class Group:
         self.adj.discard(unit)
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
+        self.distances = {u: dist + unit.distances[u] for u, dist in self.distances.items()}
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -115,6 +118,7 @@ class Group:
         for adjunit in unit.adj - self.units:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
+        self.distances = {u: dist - unit.distances[u] for u, dist in self.distances.items()}
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
@@ -131,9 +135,12 @@ class Group:
 
     def getAverageDistance(self, unit: Unit) -> float:
         # TODO this is by far the most expensive thing we do - can we bring back the better version?
-        avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        #avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        #avg = avg if not isnan(avg) else len(Globals.unitlist)
+        count = len(self.units)
+        avg = self.distances[unit] / count if count > 0 else len(Globals.unitlist)
         #avg = sum(1 for u in unit.adj if u in self.units)
-        return avg if not isnan(avg) else len(Globals.unitlist)
+        return avg
 
 
 class State:
