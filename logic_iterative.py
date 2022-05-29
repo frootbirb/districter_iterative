@@ -139,12 +139,16 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
     # Start the solver!
     state = State(numGroup=numGroup)
-    # todo: can this hinge on a "close enough"? e.g. when swapping a district flips the relative positions of two groups?
-    while len(state.unplacedUnits) != 0 or any(group.metric > state.maxAcceptableMetric for group in state.groups):
+    previousStates = []
+    while (len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)) and state.placements not in previousStates:
+        previousStates.insert(0, state.placements.copy())
+        if len(previousStates) > 5:
+            previousStates.pop()
+
         state = doStep(state)
 
     state.printResult()
 
 
 if __name__ == "__main__":
-    solve(5, scale=0)
+    solve(3, scale=0)

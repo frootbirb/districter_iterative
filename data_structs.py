@@ -131,8 +131,8 @@ class Group:
 
     def getAverageDistance(self, unit: Unit) -> float:
         # TODO this is by far the most expensive thing we do - can we bring back the better version?
-        # avg = mean([unit.distances[inUnit] for inUnit in self.units])
-        avg = sum(1 for u in unit.adj if u in self.units)
+        avg = mean([unit.distances[inUnit] for inUnit in self.units])
+        #avg = sum(1 for u in unit.adj if u in self.units)
         return avg if not isnan(avg) else len(Globals.unitlist)
 
 
@@ -148,9 +148,9 @@ class State:
         largestUnitMetric = max(unitMetrics)
         # TODO confirm that this is possible before starting?
         # The maximum acceptable size is 120% of an even split, or the largest single unit
-        self.maxAcceptableMetric = max(equalSplit * 1.2, largestUnitMetric)
+        self.maxAcceptableMetric = max(equalSplit * 1.05, largestUnitMetric)
         # The minimum acceptable size is 80% of an even split
-        self.minAcceptableMetric = equalSplit * 0.8
+        self.minAcceptableMetric = equalSplit * 0.95
 
     def getGroupFor(self, unit: Unit) -> Group:
         index = self.placements[unit] - 1
@@ -190,7 +190,7 @@ class State:
         return "{:,.2f} ({})".format(val, self.__percent(val))
 
     def printResult(self):
-        print("--------------- + Complete + ---------------")
+        print("--------------- + "+("Complete" if len(self.unplacedUnits) == 0 else "Failure")+" + ---------------")
         print("Created {} groups of {} with criteria {}".format(len(self.groups), Globals.scale, Globals.metricID))
         if len(self.groups) > 1:
             smallest = min(self.groups).metric
