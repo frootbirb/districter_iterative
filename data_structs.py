@@ -104,7 +104,8 @@ class Group:
         self.adj.discard(unit)
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
-        self.distances = {u: dist + unit.distances[u] for u, dist in self.distances.items()}
+        for u, dist in self.distances.items():
+            dist += unit.distances[u]
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -118,7 +119,8 @@ class Group:
         for adjunit in unit.adj - self.units:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
-        self.distances = {u: dist - unit.distances[u] for u, dist in self.distances.items()}
+        for u, dist in self.distances.items():
+            dist -= unit.distances[u]
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
@@ -133,15 +135,6 @@ class Group:
         # If we can reach all the adjacent groups, we're good
         return len(border) == 0
 
-    def getAverageDistance(self, unit: Unit) -> float:
-        # TODO this is by far the most expensive thing we do - can we bring back the better version?
-        #avg = mean([unit.distances[inUnit] for inUnit in self.units])
-        #avg = avg if not isnan(avg) else len(Globals.unitlist)
-        count = len(self.units)
-        avg = self.distances[unit] / count if count > 0 else len(Globals.unitlist)
-        #avg = sum(1 for u in unit.adj if u in self.units)
-        return avg
-
 
 class State:
     def __init__(self, numGroup) -> None:
@@ -153,10 +146,9 @@ class State:
         self.sumUnitMetrics = sum(unitMetrics)
         equalSplit = self.sumUnitMetrics / numGroup
         largestUnitMetric = max(unitMetrics)
-        # TODO confirm that this is possible before starting?
-        # The maximum acceptable size is 120% of an even split, or the largest single unit
+        # The maximum acceptable size is 105% of an even split, or the largest single unit
         self.maxAcceptableMetric = max(equalSplit * 1.05, largestUnitMetric)
-        # The minimum acceptable size is 80% of an even split
+        # The minimum acceptable size is 95% of an even split
         self.minAcceptableMetric = equalSplit * 0.95
 
     def getGroupFor(self, unit: Unit) -> Group:

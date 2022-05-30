@@ -19,7 +19,7 @@ def sorter(state: State, group: Group, unit: Unit):
         # Prioritize stealing from a larger group
         oldGroup.metric,
         # Prioritize shorter distance
-        -group.getAverageDistance(unit),
+        -group.distances[unit],
         unit.metric,
     )
 
@@ -76,10 +76,7 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
         newDisconnect = {seed}
         toCheck = set(seed.adj)
         while len(toCheck) > 0:
-            # TODO this is super slow - is it better to just not use it?
-            unit = min(toCheck, key=lambda u: (u not in invalid, state.placements[u] == 0, u.distances[Globals.biggest]))
-            toCheck.discard(unit)
-            #unit = toCheck.pop()
+            unit = toCheck.pop()
 
             # We've hit one of our invalid groups or a placed unit - throw out this group
             if unit in invalid or (place := state.placements[unit]) != 0 and place != group.index:
