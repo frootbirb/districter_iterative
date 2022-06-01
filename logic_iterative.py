@@ -86,12 +86,12 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
             # This unit is unplaced
             elif place == 0:
                 newDisconnect.add(unit)
-                toCheck |= (unit.adj - newDisconnect)
-        
+                toCheck |= unit.adj - newDisconnect
+
         if newDisconnect:
             borders.append(newDisconnect)
             placed |= newDisconnect
-    
+
     for border in borders:
         yield border
 
@@ -136,8 +136,10 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
     # Start the solver!
     state = State(numGroup=numGroup)
     previousMoves = []
-    last = (0,0)
-    while (len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)) and last not in previousMoves:
+    last = (0, 0)
+    while (
+        len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)
+    ) and last not in previousMoves:
         previousMoves.insert(0, last)
         if len(previousMoves) > 5:
             previousMoves.pop()

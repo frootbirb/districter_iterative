@@ -189,7 +189,7 @@ class State:
         return "{:,.2f} ({})".format(val, self.__percent(val))
 
     def printResult(self):
-        print("--------------- + "+("Complete" if len(self.unplacedUnits) == 0 else "Failure")+" + ---------------")
+        print("--------------- + " + ("Complete" if len(self.unplacedUnits) == 0 else "Failure") + " + ---------------")
         print("Created {} groups of {} with criteria {}".format(len(self.groups), Globals.scale, Globals.metricID))
         if len(self.groups) > 1:
             smallest = min(self.groups).metric
