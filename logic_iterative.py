@@ -96,9 +96,6 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
         yield border
 
 
-g_callback = None
-
-
 def doStep(state: State) -> State:
     unit, group = getNext(state)
 

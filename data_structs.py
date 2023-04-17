@@ -105,7 +105,7 @@ class Group:
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
         for u, dist in self.distances.items():
-            dist += unit.distances[u]
+            dist += unit.distances.get(u, 0)
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -120,7 +120,7 @@ class Group:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
         for u, dist in self.distances.items():
-            dist -= unit.distances[u]
+            dist -= unit.distances.get(u, 0)
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
@@ -244,19 +244,20 @@ class State:
 # --- Helper file reading function -------------------------------------------------------------------------------------
 
 
-def getDistanceStep(distCode, units):
-    dist = 0
-    distances = {unit: (0 if unit == distCode else float("inf")) for unit in units}
-    changed = True
-    while changed:
-        changed = False
-        for unit in (unit for unit in units.values() if unit in distances and distances[unit] == dist):
-            for code in (code for code in unit.adj if code in distances and distances[code] == float("inf")):
-                changed = True
-                distances[code] = dist + 1
+def getDistanceStep(startUnit, units):
+    distances = {startUnit: 0}
+    dist = 1
+    lastRow = [startUnit]
+    while lastRow:
+        changed = []
+        for unit in lastRow:
+            for adjUnit in (units[code] for code in unit.adj if code not in distances):
+                distances[adjUnit] = dist
+                changed.append(adjUnit)
         dist += 1
+        lastRow = changed
         print(
-            "Calculating distances: {:10.4f}%".format(100 * list(units.keys()).index(distCode) / len(units)),
+            "Calculating distances: {:10.4f}%".format(100 * list(units.keys()).index(startUnit) / len(units)),
             end="\r",
         )
 
@@ -272,8 +273,8 @@ def populateDistances(units):
                 name = row.pop("name")
                 units[name].distances = {code: int(dist) for code, dist in row.items() if dist}
     except:
-        for code, unit in units.items():
-            unit.distances = getDistanceStep(code, units)
+        for _, unit in units.items():
+            unit.distances = getDistanceStep(unit, units)
         print()
         with open("assets/" + Globals.scale + "/distance.csv", "w", encoding="utf8", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=["name"] + list(units.keys()))
