@@ -123,10 +123,7 @@ class Group:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
         for u, dist in unit.distances.items():
-            if u in self.distances:
-                self.distances[u] -= dist
-            else:
-                self.distances[u] = dist
+            self.distances[u] -= dist
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
