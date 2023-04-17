@@ -87,7 +87,7 @@ class Group:
         self.adj = set()
         self.metric = 0
         self.index = index
-        self.distances = {u: 0 for u in Globals.unitlist}
+        self.distances = {}
 
     def __gt__(self, other) -> bool:
         return self.metric > other.metric
@@ -104,8 +104,11 @@ class Group:
         self.adj.discard(unit)
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
-        for u, dist in self.distances.items():
-            dist += unit.distances.get(u, 0)
+        for u, dist in unit.distances.items():
+            if u in self.distances:
+                self.distances[u] += dist
+            else:
+                self.distances[u] = dist
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -119,8 +122,11 @@ class Group:
         for adjunit in unit.adj - self.units:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
-        for u, dist in self.distances.items():
-            dist -= unit.distances.get(u, 0)
+        for u, dist in unit.distances.items():
+            if u in self.distances:
+                self.distances[u] -= dist
+            else:
+                self.distances[u] = dist
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
