@@ -177,10 +177,10 @@ class State:
         return result
 
     def getUpdateDataFrame(self):
-        return sorted(([unit.name, unit.metric, str(self.placements[unit])] for unit in Globals.unitlist))
+        return [[unit.name, unit.metric, str(self.placements[unit])] for unit in Globals.unitlist]
 
     def getDummyUpdateDataFrame():
-        return sorted(([unit.name, unit.metric, "0"] for unit in Globals.unitlist))
+        return [[unit.name, unit.metric, "0"] for unit in Globals.unitlist]
 
     def __percent(self, val: float) -> str:
         return "{:.2f}%".format(100 * val / self.sumUnitMetrics)
@@ -317,4 +317,4 @@ def readFile():
 
     sys.setrecursionlimit(max(len(units), 1000))
 
-    return units.values()
+    return sorted(units.values(), key=lambda u: u.code)
