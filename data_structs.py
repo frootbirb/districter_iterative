@@ -246,12 +246,12 @@ class State:
 
 def getDistanceStep(distCode, units):
     dist = 0
-    distances = {unit: (0 if unit == distCode else 10000) for unit in units}
+    distances = {unit: (0 if unit == distCode else float("inf")) for unit in units}
     changed = True
     while changed:
         changed = False
         for unit in (unit for unit in units.values() if unit in distances and distances[unit] == dist):
-            for code in (code for code in unit.adj if code in distances and distances[code] == 10000):
+            for code in (code for code in unit.adj if code in distances and distances[code] == float("inf")):
                 changed = True
                 distances[code] = dist + 1
         dist += 1
