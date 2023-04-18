@@ -7,7 +7,6 @@ doprint = False
 
 
 def sorter(state: State, group: Group, unit: Unit):
-    oldGroup = state.getGroupFor(unit)
     # TODO can this be optimized? Call methods less often, or cache?
     return (
         # Prioritize unplaced units
@@ -15,7 +14,7 @@ def sorter(state: State, group: Group, unit: Unit):
         # Prioritize units that don't push this over the max metric
         unit.metric + group.metric < state.maxAcceptableMetric,
         # Prioritize units that don't push the target under the minimum size
-        oldGroup.metric - unit.metric > state.minAcceptableMetric,
+        (oldGroup := state.getGroupFor(unit)).metric - unit.metric > state.minAcceptableMetric,
         # Prioritize stealing from a larger group
         oldGroup.metric,
         # Prioritize shorter distance
@@ -111,8 +110,7 @@ def doStep(state: State) -> State:
     if all(len(group.adj) > 0 for group in state.groups):
         for unplacedunits in generateDisconnectedGroups(state, group):
             if doprint:
-                unplacedCount = len(unplacedunits)
-                if unplacedCount > Globals.printcap:
+                if (unplacedCount := len(unplacedunits)) > Globals.printcap:
                     print("{}: enclosed {} units".format(group.index, unplacedCount))
                 else:
                     print("{}: enclosed {}".format(group.index, unplacedunits))

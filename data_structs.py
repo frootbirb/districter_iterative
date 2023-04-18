@@ -226,8 +226,7 @@ class State:
                 )
             )
 
-        count = len(self.unplacedUnits)
-        if count > 0:
+        if (count := len(self.unplacedUnits)) > 0:
             results.append(
                 (
                     "Unplaced",
@@ -271,8 +270,7 @@ def populateDistances(units):
     # Attempt to read in distance
     try:
         with open("assets/" + Globals.scale + "/distance.csv", encoding="utf8", newline="") as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=",")
-            for row in reader:
+            for row in csv.DictReader(csvfile, delimiter=","):
                 name = row.pop("name")
                 units[name].distances = {code: int(dist) for code, dist in row.items() if dist}
     except:
@@ -292,15 +290,13 @@ def readFile():
     # Read in adjacency
     adj = {}
     with open("assets/" + Globals.scale + "/adjacency.csv", encoding="utf8", newline="") as csvfile:
-        reader = csv.reader(csvfile, delimiter=",")
-        for row in reader:
+        for row in csv.reader(csvfile, delimiter=","):
             adj[row[0]] = row[1:]
 
     # Read in units
     units = {}
     with open("assets/" + Globals.scale + "/data.tsv", encoding="utf8", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, delimiter="\t")
-        for row in reader:
+        for row in csv.DictReader(csvfile, delimiter="\t"):
             code = row["Unit"]
             # Skip the Totals row
             if code == "Total":
