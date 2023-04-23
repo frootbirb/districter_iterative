@@ -37,7 +37,7 @@ def doParallelTests(scale, range):
         p.starmap(solve, getNextParam(scale, range))
 
 def stepthrough(numGroup, metricID, scale):
-    callback = lambda dataframe: input([i[0]+": "+i[2] for i in sorted(dataframe, key=lambda i: (i[2], i[0])) if i[2] != '0'])
+    callback = lambda data: input([i[0]+": "+i[2] for i in sorted(data, key=lambda i: (i[2], i[0])) if i[2] != '0'])
     solve(numGroup, metricID, scale, callback)
 
 if __name__ == "__main__":

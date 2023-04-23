@@ -120,12 +120,12 @@ def doStep(state: State) -> State:
                 state.printState()
 
     if Globals.callback:
-        Globals.callback(state.getUpdateDataFrame())
+        Globals.callback(state.getUpdateData())
 
     return state, (unit, group.index)
 
 
-def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
+def solve(numGroup, metricID=0, scale=0, callback=None) -> State:
     Globals.set(metricID, scale, callback)
 
     # Start the solver!
@@ -141,7 +141,7 @@ def solve(numGroup, metricID=0, scale=0, callback=None) -> dict:
 
         state, last = doStep(state)
 
-    state.printResult()
+    return state
 
 
 if __name__ == "__main__":

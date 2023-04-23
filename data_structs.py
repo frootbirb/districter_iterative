@@ -161,7 +161,10 @@ class State:
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
         return any(self.placements[unit] == 0 for unit in group.adj)
 
-    def getDummyDataFrame():
+    def getPlacements(self):
+        return {unit.code: self.placements[unit] for unit in Globals.unitlist}
+
+    def getDummyData():
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
         for unit in Globals.unitlist:
             result["unit"].append(unit.name)
@@ -171,18 +174,18 @@ class State:
 
         return result
 
-    def getCurrentDataFrame(self):
-        result = State.getDummyDataFrame()
+    def getCurrentData(self):
+        result = State.getDummyData()
 
         for placement in self.placements.values():
             result["group"][2] = str(placement)
 
         return result
 
-    def getUpdateDataFrame(self):
+    def getUpdateData(self):
         return [[unit.name, unit.metric, str(self.placements[unit])] for unit in Globals.unitlist]
 
-    def getDummyUpdateDataFrame():
+    def getDummyUpdateData():
         return [[unit.name, unit.metric, "0"] for unit in Globals.unitlist]
 
     def __percent(self, val: float) -> str:
