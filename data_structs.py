@@ -2,65 +2,58 @@ import sys
 import csv
 from os import get_terminal_size as term_size
 
-import assets.states.name_to_abbrev as state_converter
-import assets.counties.name_to_abbrev as county_converter
-
 # --- Globals ----------------------------------------------------------------------------------------------------------
 
 scales = ["states", "counties"]
 
-_unitlistStates: list
-_unitlistCounties: list
+_unitlists: dict[str, list] = {}
+_metricNames: dict[str, list[str]] = {}
 
 
 def unitlist(scale: str) -> list:
-    global _unitlistStates, _unitlistCounties
-    if scale == "states":
-        try:
-            return _unitlistStates
-        except:
-            _unitlistStates = readFile(scale)
-            return _unitlistStates
-    elif scale == "counties":
-        try:
-            return _unitlistCounties
-        except:
-            _unitlistCounties = readFile(scale)
-            return _unitlistCounties
-    else:
-        return []
+    global _unitlists, _metricNames
+    try:
+        return _unitlists[scale]
+    except:
+        _unitlists[scale], _metricNames[scale] = readFile(scale)
+        return _unitlists[scale]
 
 
 def metricNames(scale: str) -> list[str]:
-    if scale == "states":
-        return ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
-    elif scale == "counties":
-        return ["Population"]
-    else:
-        return []
+    global _unitlists, _metricNames
+    try:
+        return _metricNames[scale]
+    except:
+        _unitlists[scale], _metricNames[scale] = readFile(scale)
+        return _metricNames[scale]
+
+
+_converters: dict[str, dict[str, str]] = {}
 
 
 def abbrev_to_name(scale: str) -> dict[str, str]:
-    if scale == "states":
-        return state_converter.abbrev_to_name
-    elif scale == "counties":
-        return county_converter.abbrev_to_name
-    else:
-        return {}
+    global _converters
+    try:
+        return _converters[scale]
+    except:
+        _converters[scale] = __import__(
+            f"assets.{scale}.name_to_abbrev", globals(), locals(), ["abbrev_to_name"]
+        ).abbrev_to_name
+        return _converters[scale]
 
 
 # --- Data structures --------------------------------------------------------------------------------------------------
 
 
 class Unit:
-    def __init__(self, code: str, metrics: dict[str, int], scale: str):
+    def __init__(self, code: str, metrics: dict[str, float], scale: str):
         self.code = code
         self.metrics = metrics
         self.adj = set()
         self.name = abbrev_to_name(scale)[code]
         self.hash = hash(code)
         self.distances = {}
-        self.metric = self.metrics[metricNames(scale)[0]]
+        self.metric = metrics[next(iter(metrics))]
 
     def setCurrentMetric(self, metricID: str) -> None:
         self.metric = self.metrics[metricID]
@@ -219,11 +212,11 @@ class State:
             largest = max(self.groups).metric
             print(
                 f"Final spread: {self.__numWithPercent(largest - smallest)}, "
-                + f"from {self.__numWithPercent(smallest)} to {self.__numWithPercent(largest)}"
+                f"from {self.__numWithPercent(smallest)} to {self.__numWithPercent(largest)}"
             )
         print(
             f"Acceptable sizes: {self.__numWithPercent(self.minAcceptableMetric)} "
-            + f"to {self.__numWithPercent(self.maxAcceptableMetric)}"
+            f"to {self.__numWithPercent(self.maxAcceptableMetric)}"
         )
         self.printState()
 
@@ -299,7 +292,7 @@ def populateDistances(scale: str, units: dict[str, Unit]) -> dict[str, Unit]:
     return units
 
 
-def readFile(scale: str) -> list[Unit]:
+def readFile(scale: str) -> tuple[list[Unit], list[str]]:
     # Read in adjacency
     adj = {}
     with open(f"assets/{scale}/adjacency.csv", encoding="utf8", newline="") as csvfile:
@@ -308,15 +301,18 @@ def readFile(scale: str) -> list[Unit]:
 
     # Read in units
     units = {}
+    metricNames: list[str] = []
     with open(f"assets/{scale}/data.tsv", encoding="utf8", newline="") as csvfile:
         for row in csv.DictReader(csvfile, delimiter="\t"):
+            if not metricNames:
+                metricNames = list(filter(lambda k: k != "Unit", row.keys()))
             code = row["Unit"]
             # Skip the Totals row
             if code == "Total":
                 continue
             # add the unit and metrics
             unitMetrics = {
-                key: int(value.strip().replace(",", "")) for (key, value) in row.items() if key in metricNames(scale)
+                key: float(value.strip().replace(",", "")) for (key, value) in row.items() if key in metricNames
             }
             units[code] = Unit(code, unitMetrics, scale)
 
@@ -329,4 +325,4 @@ def readFile(scale: str) -> list[Unit]:
 
     sys.setrecursionlimit(max(len(units), 1000))
 
-    return sorted(units.values(), key=lambda u: u.code)
+    return sorted(units.values(), key=lambda u: u.code), metricNames
