@@ -1,4 +1,4 @@
-from data_structs import State, Unit, Group, Globals
+from data_structs import State, Unit, Group, globals
 from itertools import chain
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
@@ -24,7 +24,6 @@ def sorter(state: State, group: Group, unit: Unit):
 
 
 def getNext(state: State) -> tuple[Unit, Group]:
-
     group = min(
         state.groups,
         key=lambda group: (
@@ -48,7 +47,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
     return (max(units, key=lambda unit: sorter(state, group, unit)), group)
 
 
-def addToGroup(state: State, unit: Unit, group: Group) -> None:
+def addToGroup(state: State, unit: Unit, group: Group) -> tuple[State, Group]:
     group.addUnit(unit)
     if (placement := state.placements[unit]) == 0:
         state.unplacedUnits.remove(unit)
@@ -56,14 +55,19 @@ def addToGroup(state: State, unit: Unit, group: Group) -> None:
         state.groups[placement - 1].removeUnit(unit)
     state.placements[unit] = group.index
 
+    return state, group
 
-def removeFromGroup(state: State, unit: Unit, group: Group) -> None:
+
+# TODO: deprecated? remove this?
+def removeFromGroup(state: State, unit: Unit, group: Group) -> tuple[State, Group]:
     state.unplacedUnits.append(unit)
     group.removeUnit(unit)
     state.placements[unit] = 0
 
+    return state, group
 
-def generateDisconnectedGroups(state: State, group: Group) -> set:
+
+def generateDisconnectedGroups(state: State, group: Group):
     # Get all units adjacent to the current group which are not in a group
     borders = []
     invalid = set()
@@ -95,13 +99,13 @@ def generateDisconnectedGroups(state: State, group: Group) -> set:
         yield border
 
 
-def doStep(state: State) -> State:
+def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
     unit, group = getNext(state)
 
     if doprint:
         print("{}: Adding {}".format(group.index, unit))
 
-    addToGroup(state, unit, group)
+    state, group = addToGroup(state, unit, group)
 
     if doprint:
         state.printState()
@@ -110,23 +114,24 @@ def doStep(state: State) -> State:
     if all(len(group.adj) > 0 for group in state.groups):
         for unplacedunits in generateDisconnectedGroups(state, group):
             if doprint:
-                if (unplacedCount := len(unplacedunits)) > Globals.printcap:
+                if (unplacedCount := len(unplacedunits)) > globals.printcap:
                     print("{}: enclosed {} units".format(group.index, unplacedCount))
                 else:
                     print("{}: enclosed {}".format(group.index, unplacedunits))
             for unplaced in unplacedunits:
-                addToGroup(state, unplaced, group)
+                state, group = addToGroup(state, unplaced, group)
             if doprint:
                 state.printState()
 
-    if Globals.callback:
-        Globals.callback(state.getUpdateData())
+    if globals.callback:
+        globals.callback(state.getUpdateData())
+        # TODO figure out more limited callback info?
 
     return state, (unit, group.index)
 
 
-def solve(numGroup, metricID=0, scale=0, callback=None) -> State:
-    Globals.set(metricID, scale, callback)
+def solve(numGroup, metricID: str | int = 0, scale: str | int = 0, callback=None) -> State:
+    globals.set(metricID, scale, callback)
 
     # Start the solver!
     state = State(numGroup=numGroup)

@@ -1,7 +1,7 @@
 import cProfile
 import pstats
 from multiprocessing import Pool
-from logic_iterative import solve, Globals
+from logic_iterative import solve, globals
 
 # --- Profiler ---------------------------------------------------------------------------------------------------------
 
@@ -20,25 +20,27 @@ def profile(string):
 
 def getNextParam(scale, range):
     for numGroup in range:
-        for metricID in Globals.allowed:
+        for metricID in globals.metrics:
             yield numGroup, metricID, scale
 
 
 def doTests(scale, range):
-    Globals.set(0, scale=scale)
+    globals.set(0, scale=scale)
     for numGroup, metricID, scale in getNextParam(scale, range):
         print("Created {} groups with criteria {}".format(numGroup, metricID))
         solve(numGroup, metricID, scale)
 
 
 def doParallelTests(scale, range):
-    Globals.set(0, scale=scale)
+    globals.set(0, scale=scale)
     with Pool(8) as p:
         p.starmap(solve, getNextParam(scale, range))
 
+
 def stepthrough(numGroup, metricID, scale):
-    callback = lambda data: input([i[0]+": "+i[2] for i in sorted(data, key=lambda i: (i[2], i[0])) if i[2] != '0'])
+    callback = lambda data: input([i[0] + ": " + i[2] for i in sorted(data, key=lambda i: (i[2], i[0])) if i[2] != "0"])
     solve(numGroup, metricID, scale, callback)
+
 
 if __name__ == "__main__":
     profile("doTests(0, range(1,6))")

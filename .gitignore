@@ -2,3 +2,4 @@
 *.pyc
 distance.csv
 *.profile
+.vscode/settings.json
