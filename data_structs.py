@@ -6,7 +6,7 @@ from os import get_terminal_size as term_size
 
 scales = ["states", "counties"]
 
-_unitlists: dict[str, list] = {}
+_unitlists: dict[str, list['Unit']] = {}
 _metricNames: dict[str, list[str]] = {}
 
 
@@ -64,7 +64,7 @@ class Unit:
     def __repr__(self) -> str:
         return self.code
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: 'str | Unit') -> bool:
         return self.code == other
 
     def __hash__(self) -> int:
