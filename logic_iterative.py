@@ -30,13 +30,13 @@ def getNext(state: State) -> tuple[Unit, Group]:
         state.groups,
         key=lambda group: (
             # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
-            -(state.hasAnyUnplacedAdjacent(group) or group.empty() or len(group.adj) == 0),
+            -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
             group.metric,
         ),
     )
 
     # Get the units which might be viable
-    if group.empty():
+    if group.empty:
         units = state.unplacedUnits
     elif any(state.placements[u] == 0 for u in group.adj):
         units = (unit for unit in group.adj if state.placements[unit] == 0)
@@ -120,10 +120,8 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
         for unplacedUnits in generateDisconnectedGroups(state, group):
             if doprint:
                 unplacedCount = len(unplacedUnits)
-                longEnough = term_size().columns > unplacedCount*4 + 12
-                print(
-                    f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}"
-                )
+                longEnough = term_size().columns > unplacedCount * 4 + 12
+                print(f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}")
             for unplaced in unplacedUnits:
                 state, group = addToGroup(state, unplaced, group)
             if doprint:

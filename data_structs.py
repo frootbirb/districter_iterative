@@ -6,7 +6,7 @@ from os import get_terminal_size as term_size
 
 scales = ["states", "counties"]
 
-_unitlists: dict[str, list['Unit']] = {}
+_unitlists: dict[str, list["Unit"]] = {}
 _metricNames: dict[str, list[str]] = {}
 
 
@@ -49,10 +49,10 @@ class Unit:
     def __init__(self, code: str, metrics: dict[str, float], scale: str):
         self.code = code
         self.metrics = metrics
-        self.adj = set()
+        self.adj = set[Unit]()
         self.name = abbrev_to_name(scale)[code]
         self.hash = hash(code)
-        self.distances = {}
+        self.distances = dict[Unit, int]()
         self.metric = metrics[next(iter(metrics))]
 
     def setCurrentMetric(self, metricID: str) -> None:
@@ -64,7 +64,7 @@ class Unit:
     def __repr__(self) -> str:
         return self.code
 
-    def __eq__(self, other: 'str | Unit') -> bool:
+    def __eq__(self, other: "str | Unit") -> bool:
         return self.code == other
 
     def __hash__(self) -> int:
@@ -82,6 +82,7 @@ class Group:
     def __gt__(self, other) -> bool:
         return self.metric > other.metric
 
+    @property
     def empty(self) -> bool:
         return len(self.units) == 0
 
@@ -260,7 +261,7 @@ def getDistanceStep(startUnit: Unit, units: dict[str, Unit]) -> dict[Unit, int]:
     while lastRow:
         changed = []
         for unit in lastRow:
-            for adjUnit in (units[code] for code in unit.adj if code not in distances):
+            for adjUnit in (code for code in unit.adj if code not in distances):
                 distances[adjUnit] = dist
                 changed.append(adjUnit)
         dist += 1
@@ -276,16 +277,16 @@ def populateDistances(scale: str, units: dict[str, Unit]) -> dict[str, Unit]:
         with open(f"assets/{scale}/distance.csv", encoding="utf8", newline="") as csvfile:
             for row in csv.DictReader(csvfile, delimiter=","):
                 name = row.pop("name")
-                units[name].distances = {code: int(dist) for code, dist in row.items() if dist}
+                units[name].distances = {units[code]: int(dist) for code, dist in row.items() if dist}
     except:
         for _, unit in units.items():
             unit.distances = getDistanceStep(unit, units)
-        print()
+        print(f"Calculating distances: {100:10.4f}%")
         with open(f"assets/{scale}/distance.csv", "w", encoding="utf8", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=["name"] + list(units.keys()))
             writer.writeheader()
             for unit in units.values():
-                newRow = unit.distances.copy()
+                newRow = {u.code: str(dist) for u, dist in unit.distances.items()}
                 newRow["name"] = unit.code
                 writer.writerow(newRow)
 
