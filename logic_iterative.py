@@ -20,7 +20,7 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
         # Prioritize stealing from a larger group
         oldGroup.metric,
         # Prioritize shorter distance
-        -group.distances.get(unit, float("inf")),
+        -group.distanceSum.get(unit, float("inf")),
         unit.metric,
     )
 

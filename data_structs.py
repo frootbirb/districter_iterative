@@ -73,13 +73,13 @@ class Unit:
 
 class Group:
     def __init__(self, index: int) -> None:
-        self.units = set()
-        self.adj = set()
+        self.units = set[Unit]()
+        self.adj = set[Unit]()
         self.metric = 0
         self.index = index
-        self.distances = {}
+        self.distanceSum = {}
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: "Group") -> bool:
         return self.metric > other.metric
 
     @property
@@ -96,10 +96,10 @@ class Group:
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
         for u, dist in unit.distances.items():
-            if u in self.distances:
-                self.distances[u] += dist
-            else:
-                self.distances[u] = dist
+            if u in self.distanceSum:
+                self.distanceSum[u] += dist
+            elif dist != 0:
+                self.distanceSum[u] = dist
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -114,7 +114,9 @@ class Group:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
         for u, dist in unit.distances.items():
-            self.distances[u] -= dist
+            self.distanceSum[u] -= dist
+            if self.distanceSum[u] == 0:
+                self.distanceSum.pop(u)
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
@@ -268,6 +270,7 @@ def getDistanceStep(startUnit: Unit, units: dict[str, Unit]) -> dict[Unit, int]:
         lastRow = changed
         print(f"Calculating distances: {100 * list(units.keys()).index(startUnit.code) / len(units):10.4f}%", end="\r")
 
+    distances.pop(startUnit)
     return distances
 
 
