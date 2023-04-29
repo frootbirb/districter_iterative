@@ -1,5 +1,6 @@
 import sys
 import csv
+from typing import Iterator, Callable
 from os import get_terminal_size as term_size
 
 # --- Globals ----------------------------------------------------------------------------------------------------------
@@ -149,7 +150,13 @@ class State:
         elif isinstance(metricID, int):
             return metricNames(scale)[metricID]
 
-    def __init__(self, numGroup: int, metricID: str | int, scale: str | int, callback=None):
+    def __init__(
+        self,
+        numGroup: int,
+        metricID: str | int,
+        scale: str | int,
+        callback: Callable[[list[tuple[str, int, str]]], None] | None = None,
+    ):
         self.scale = State.parseScale(scale)
         self.metricID = State.parseMetricID(self.scale, metricID)
 
@@ -171,11 +178,50 @@ class State:
         # The minimum acceptable size is 95% of an even split
         self.minAcceptableMetric = equalSplit * 0.95
 
+    def addToGroup(self, unit: Unit, group: Group):
+        group.addUnit(unit)
+        if (placement := self.placements[unit]) == 0:
+            self.unplacedUnits.remove(unit)
+        else:
+            self.groups[placement - 1].removeUnit(unit)
+        self.placements[unit] = group.index
+
     def getGroupFor(self, unit: Unit) -> Group:
         return self.groups[self.placements[unit] - 1]
 
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
         return any(self.placements[unit] == 0 for unit in group.adj)
+
+    def generateDisconnectedGroups(self, group: Group) -> Iterator[set[Unit]]:
+        # Get all units adjacent to the current group which are not in a group
+        borders = []
+        invalid = set()
+        placed = set()
+        for seed in group.adj:
+            if self.placements[seed] != 0 or seed in invalid or seed in placed:
+                continue
+
+            newDisconnect = {seed}
+            toCheck = set(seed.adj)
+            while len(toCheck) > 0:
+                unit = toCheck.pop()
+
+                # We've hit one of our invalid groups or a placed unit - throw out this group
+                if unit in invalid or (place := self.placements[unit]) != 0 and place != group.index:
+                    invalid |= newDisconnect
+                    newDisconnect = None
+                    break
+                # This unit is unplaced
+                elif place == 0:
+                    newDisconnect.add(unit)
+                    toCheck |= unit.adj - newDisconnect
+
+            if newDisconnect:
+                borders.append(newDisconnect)
+                placed |= newDisconnect
+
+        for border in borders:
+            yield border
 
     def getDummyData(self) -> dict[str, list[str]]:
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}

@@ -49,58 +49,6 @@ def getNext(state: State) -> tuple[Unit, Group]:
     return (max(units, key=lambda unit: sorter(state, group, unit)), group)
 
 
-def addToGroup(state: State, unit: Unit, group: Group) -> tuple[State, Group]:
-    group.addUnit(unit)
-    if (placement := state.placements[unit]) == 0:
-        state.unplacedUnits.remove(unit)
-    else:
-        state.groups[placement - 1].removeUnit(unit)
-    state.placements[unit] = group.index
-
-    return state, group
-
-
-# TODO: deprecated? remove this?
-def removeFromGroup(state: State, unit: Unit, group: Group) -> tuple[State, Group]:
-    state.unplacedUnits.append(unit)
-    group.removeUnit(unit)
-    state.placements[unit] = 0
-
-    return state, group
-
-
-def generateDisconnectedGroups(state: State, group: Group):
-    # Get all units adjacent to the current group which are not in a group
-    borders = []
-    invalid = set()
-    placed = set()
-    for seed in group.adj:
-        if state.placements[seed] != 0 or seed in invalid or seed in placed:
-            continue
-
-        newDisconnect = {seed}
-        toCheck = set(seed.adj)
-        while len(toCheck) > 0:
-            unit = toCheck.pop()
-
-            # We've hit one of our invalid groups or a placed unit - throw out this group
-            if unit in invalid or (place := state.placements[unit]) != 0 and place != group.index:
-                invalid |= newDisconnect
-                newDisconnect = None
-                break
-            # This unit is unplaced
-            elif place == 0:
-                newDisconnect.add(unit)
-                toCheck |= unit.adj - newDisconnect
-
-        if newDisconnect:
-            borders.append(newDisconnect)
-            placed |= newDisconnect
-
-    for border in borders:
-        yield border
-
-
 def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
     unit, group = getNext(state)
 
@@ -110,20 +58,20 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
         else:
             print(f"{group.index}: Stealing {unit} from {placement}")
 
-    state, group = addToGroup(state, unit, group)
+    state.addToGroup(unit, group)
 
     if doprint:
         state.printState()
 
     # If every group has some adjacent units, we can start checking for enclosures
     if all(len(group.adj) > 0 for group in state.groups):
-        for unplacedUnits in generateDisconnectedGroups(state, group):
+        for unplacedUnits in state.generateDisconnectedGroups(group):
             if doprint:
                 unplacedCount = len(unplacedUnits)
                 longEnough = term_size().columns > unplacedCount * 4 + 12
                 print(f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}")
             for unplaced in unplacedUnits:
-                state, group = addToGroup(state, unplaced, group)
+                state.addToGroup(unplaced, group)
             if doprint:
                 state.printState()
 
