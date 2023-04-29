@@ -176,7 +176,7 @@ class State:
 
     def getDummyData(self) -> dict[str, list[str]]:
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
-        for unit in unitlist(self.scale):
+        for unit in self.placements:
             result["unit"].append(unit.name)
             result["code"].append(unit.code)
             result["group"].append("0")
@@ -193,10 +193,10 @@ class State:
         return result
 
     def getUpdateData(self) -> list[tuple[str, int, str]]:
-        return [(unit.name, unit.metric, str(self.placements[unit])) for unit in unitlist(self.scale)]
+        return [(unit.name, unit.metric, str(placement)) for unit, placement in self.placements.items()]
 
     def getDummyUpdateData(self) -> list[tuple[str, int, str]]:
-        return [(unit.name, unit.metric, "0") for unit in unitlist(self.scale)]
+        return [(unit.name, unit.metric, "0") for unit in self.placements]
 
     def __percent(self, val: float) -> str:
         return f"{100 * val / self.sumUnitMetrics:.2f}%"
@@ -228,7 +228,7 @@ class State:
                     f"Group {group.index}",
                     self.__percent(group.metric),
                     "|".join(sorted(unit.code for unit in group.units)),
-                    f"{(count := len(group.units))} units ({100 * (count / len(unitlist(self.scale))):.2f}% of total)",
+                    f"{(count := len(group.units))} units ({100 * (count / len(self.placements)):.2f}% of total)",
                 )
             )
 
@@ -238,7 +238,7 @@ class State:
                     "Unplaced",
                     self.__percent(sum(unit.metric for unit in self.unplacedUnits)),
                     "|".join(sorted(unit.code for unit in self.unplacedUnits)),
-                    f"{count} units ({100 * (count / len(unitlist(self.scale))):.2f}% of total)",
+                    f"{count} units ({100 * (count / len(self.placements)):.2f}% of total)",
                 )
             )
 
