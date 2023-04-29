@@ -1,4 +1,6 @@
-from data_structs import State, Unit, Group, globals
+from os import get_terminal_size as term_size
+
+from data_structs import State, Unit, Group
 from itertools import chain
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
@@ -6,7 +8,7 @@ from itertools import chain
 doprint = False
 
 
-def sorter(state: State, group: Group, unit: Unit):
+def sorter(state: State, group: Group, unit: Unit) -> tuple:
     # TODO can this be optimized? Call methods less often, or cache?
     return (
         # Prioritize unplaced units
@@ -103,7 +105,10 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
     unit, group = getNext(state)
 
     if doprint:
-        print("{}: Adding {}".format(group.index, unit))
+        if (placement := state.placements[unit]) == 0:
+            print(f"{group.index}: Adding {unit}")
+        else:
+            print(f"{group.index}: Stealing {unit} from {placement}")
 
     state, group = addToGroup(state, unit, group)
 
@@ -112,29 +117,28 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
 
     # If every group has some adjacent units, we can start checking for enclosures
     if all(len(group.adj) > 0 for group in state.groups):
-        for unplacedunits in generateDisconnectedGroups(state, group):
+        for unplacedUnits in generateDisconnectedGroups(state, group):
             if doprint:
-                if (unplacedCount := len(unplacedunits)) > globals.printcap:
-                    print("{}: enclosed {} units".format(group.index, unplacedCount))
-                else:
-                    print("{}: enclosed {}".format(group.index, unplacedunits))
-            for unplaced in unplacedunits:
+                unplacedCount = len(unplacedUnits)
+                longEnough = term_size().columns > unplacedCount*4 + 12
+                print(
+                    f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}"
+                )
+            for unplaced in unplacedUnits:
                 state, group = addToGroup(state, unplaced, group)
             if doprint:
                 state.printState()
 
-    if globals.callback:
-        globals.callback(state.getUpdateData())
+    if state.callback:
+        state.callback(state.getUpdateData())
         # TODO figure out more limited callback info?
 
     return state, (unit, group.index)
 
 
-def solve(numGroup, metricID: str | int = 0, scale: str | int = 0, callback=None) -> State:
-    globals.set(metricID, scale, callback)
-
+def solve(numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback=None) -> State:
     # Start the solver!
-    state = State(numGroup=numGroup)
+    state = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
     previousMoves = []
     last = (0, 0)
     while (

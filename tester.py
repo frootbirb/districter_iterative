@@ -1,7 +1,8 @@
 import cProfile
 import pstats
 from multiprocessing import Pool
-from logic_iterative import solve, globals
+import logic_iterative as logic
+from data_structs import metricNames, State
 
 # --- Profiler ---------------------------------------------------------------------------------------------------------
 
@@ -18,28 +19,29 @@ def profile(string):
     stats.print_stats(10)
 
 
-def getNextParam(scale, range):
+def getNextParam(scale: str, range: range):
     for numGroup in range:
-        for metricID in globals.metrics:
+        for metricID in metricNames(scale):
             yield numGroup, metricID, scale
 
 
-def doTests(scale, range):
-    globals.set(0, scale=scale)
+def doTests(scale: str | int, range: range):
+    scale = State.parseScale(scale)
     for numGroup, metricID, scale in getNextParam(scale, range):
-        print("Created {} groups with criteria {}".format(numGroup, metricID))
-        solve(numGroup, metricID, scale)
+        print(f"Created {numGroup} groups with criteria {metricID}")
+        logic.solve(numGroup, metricID, scale).printResult()
 
 
-def doParallelTests(scale, range):
-    globals.set(0, scale=scale)
+def doParallelTests(scale: str | int, range: range):
+    scale = State.parseScale(scale)
     with Pool(8) as p:
-        p.starmap(solve, getNextParam(scale, range))
+        p.starmap(logic.solve, getNextParam(scale, range))
 
 
-def stepthrough(numGroup, metricID, scale):
-    callback = lambda data: input([i[0] + ": " + i[2] for i in sorted(data, key=lambda i: (i[2], i[0])) if i[2] != "0"])
-    solve(numGroup, metricID, scale, callback)
+def stepthrough(numGroup: int, metricID: str | int, scale: str | int):
+    callback = lambda _: input()
+    logic.doprint = True
+    logic.solve(numGroup, metricID, scale, callback)
 
 
 if __name__ == "__main__":

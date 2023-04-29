@@ -1,77 +1,69 @@
 import sys
 import csv
+from os import get_terminal_size as term_size
 
 import assets.states.name_to_abbrev as state_converter
 import assets.counties.name_to_abbrev as county_converter
 
 # --- Globals ----------------------------------------------------------------------------------------------------------
 
+scales = ["states", "counties"]
 
-class _Globals:
-    metrics = ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
-    scales = ["states", "counties"]
-
-    printcap = 31
-
-    scale: str = ""
-    metricID: str
-    allowed: list
-    callback = None
-
-    unitlist: list
-    abbrev_to_name: dict
-
-    def set(self, metricID: str | int, scale: str | int, callback=None) -> None:
-        # Enable MetricID to be set as a string or an index
-        if isinstance(scale, str):
-            newscale = scale
-        elif isinstance(scale, int):
-            newscale = self.scales[scale]
-
-        scaleChanged = newscale != self.scale
-        self.scale = newscale
-
-        if self.scale == "states":
-            self.banned = []
-            self.abbrev_to_name = state_converter.abbrev_to_name
-        elif self.scale == "counties":
-            self.banned = ["Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
-            self.abbrev_to_name = county_converter.abbrev_to_name
-
-        self.allowed = [metric for metric in self.metrics if metric not in self.banned]
-
-        # Enable MetricID to be set as a string or an index
-        if isinstance(metricID, str):
-            self.metricID = metricID
-        elif isinstance(metricID, int):
-            self.metricID = self.allowed[metricID]
-
-        if callback:
-            self.callback = callback
-
-        if scaleChanged:
-            self.unitlist = readFile()
-            self.biggest = max(self.unitlist, key=lambda u: u.metric)
+_unitlistStates: list
+_unitlistCounties: list
 
 
-globals = _Globals()
+def unitlist(scale: str) -> list:
+    global _unitlistStates, _unitlistCounties
+    if scale == "states":
+        try:
+            return _unitlistStates
+        except:
+            _unitlistStates = readFile(scale)
+            return _unitlistStates
+    elif scale == "counties":
+        try:
+            return _unitlistCounties
+        except:
+            _unitlistCounties = readFile(scale)
+            return _unitlistCounties
+    else:
+        return []
+
+
+def metricNames(scale: str) -> list[str]:
+    if scale == "states":
+        return ["Population", "Firearms", "Area (mi2)", "Land (mi2)", "GDP ($1m)", "Food ($1k)"]
+    elif scale == "counties":
+        return ["Population"]
+    else:
+        return []
+
+
+def abbrev_to_name(scale: str) -> dict[str, str]:
+    if scale == "states":
+        return state_converter.abbrev_to_name
+    elif scale == "counties":
+        return county_converter.abbrev_to_name
+    else:
+        return {}
 
 
 # --- Data structures --------------------------------------------------------------------------------------------------
 
 
 class Unit:
-    def __init__(self, code, metrics) -> None:
+    def __init__(self, code: str, metrics: dict[str, int], scale: str):
         self.code = code
         self.metrics = metrics
         self.adj = set()
-        self.name = globals.abbrev_to_name[code]
+        self.name = abbrev_to_name(scale)[code]
         self.hash = hash(code)
         self.distances = {}
+        self.metric = self.metrics[metricNames(scale)[0]]
 
-    @property
-    def metric(self) -> int:
-        return self.metrics[globals.metricID]
+    def setCurrentMetric(self, metricID: str) -> None:
+        self.metric = self.metrics[metricID]
 
     def __str__(self) -> str:
         return self.code
@@ -87,7 +79,7 @@ class Unit:
 
 
 class Group:
-    def __init__(self, index) -> None:
+    def __init__(self, index: int) -> None:
         self.units = set()
         self.adj = set()
         self.metric = 0
@@ -145,12 +137,36 @@ class Group:
 
 
 class State:
-    def __init__(self, numGroup) -> None:
-        self.placements = {unit: 0 for unit in globals.unitlist}
-        self.unplacedUnits = sorted(globals.unitlist, key=lambda unit: unit.metric, reverse=True)
+    @staticmethod
+    def parseScale(scale: str | int) -> str:
+        # Enable MetricID to be set as a string or an index
+        if isinstance(scale, str):
+            return scale
+        elif isinstance(scale, int):
+            return scales[scale]
+
+    @staticmethod
+    def parseMetricID(scale: str, metricID: str | int) -> str:
+        # Enable MetricID to be set as a string or an index
+        if isinstance(metricID, str):
+            return metricID
+        elif isinstance(metricID, int):
+            return metricNames(scale)[metricID]
+
+    def __init__(self, numGroup: int, metricID: str | int, scale: str | int, callback=None):
+        self.scale = State.parseScale(scale)
+        self.metricID = State.parseMetricID(self.scale, metricID)
+
+        self.callback = callback
+
+        for unit in unitlist(self.scale):
+            unit.setCurrentMetric(self.metricID)
+
+        self.placements = {unit: 0 for unit in unitlist(self.scale)}
+        self.unplacedUnits = sorted(unitlist(self.scale), key=lambda unit: unit.metric, reverse=True)
         self.groups = [Group(i + 1) for i in range(numGroup)]
 
-        unitMetrics = [unit.metric for unit in globals.unitlist]
+        unitMetrics = [unit.metric for unit in unitlist(self.scale)]
         self.sumUnitMetrics = sum(unitMetrics)
         equalSplit = self.sumUnitMetrics / numGroup
         largestUnitMetric = max(unitMetrics)
@@ -165,12 +181,9 @@ class State:
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
         return any(self.placements[unit] == 0 for unit in group.adj)
 
-    def getPlacements(self):
-        return {unit.code: self.placements[unit] for unit in globals.unitlist}
-
-    def getDummyData(self):
+    def getDummyData(self) -> dict[str, list[str]]:
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
-        for unit in globals.unitlist:
+        for unit in unitlist(self.scale):
             result["unit"].append(unit.name)
             result["code"].append(unit.code)
             result["group"].append("0")
@@ -178,7 +191,7 @@ class State:
 
         return result
 
-    def getCurrentData(self):
+    def getCurrentData(self) -> dict[str, list[str]]:
         result = self.getDummyData()
 
         for placement in self.placements.values():
@@ -186,50 +199,43 @@ class State:
 
         return result
 
-    def getUpdateData(self):
-        return [[unit.name, unit.metric, str(self.placements[unit])] for unit in globals.unitlist]
+    def getUpdateData(self) -> list[tuple[str, int, str]]:
+        return [(unit.name, unit.metric, str(self.placements[unit])) for unit in unitlist(self.scale)]
 
-    def getDummyUpdateData(self):
-        return [[unit.name, unit.metric, "0"] for unit in globals.unitlist]
+    def getDummyUpdateData(self) -> list[tuple[str, int, str]]:
+        return [(unit.name, unit.metric, "0") for unit in unitlist(self.scale)]
 
     def __percent(self, val: float) -> str:
-        return "{:.2f}%".format(100 * val / self.sumUnitMetrics)
+        return f"{100 * val / self.sumUnitMetrics:.2f}%"
 
     def __numWithPercent(self, val: float) -> str:
-        return "{:,.2f} ({})".format(val, self.__percent(val))
+        return f"{val:,.2f} ({self.__percent(val)})"
 
     def printResult(self):
-        print("--------------- + " + ("Complete" if len(self.unplacedUnits) == 0 else "Failure") + " + ---------------")
-        print("Created {} groups of {} with criteria {}".format(len(self.groups), globals.scale, globals.metricID))
+        print(f"--------------- + {'Complete' if len(self.unplacedUnits) == 0 else 'Failure'} + ---------------")
+        print(f"Created {len(self.groups)} groups of {self.scale} with criteria {self.metricID}")
         if len(self.groups) > 1:
             smallest = min(self.groups).metric
             largest = max(self.groups).metric
             print(
-                "Final spread: {}, from {} to {}".format(
-                    self.__numWithPercent(largest - smallest),
-                    self.__numWithPercent(smallest),
-                    self.__numWithPercent(largest),
-                )
+                f"Final spread: {self.__numWithPercent(largest - smallest)}, "
+                + f"from {self.__numWithPercent(smallest)} to {self.__numWithPercent(largest)}"
             )
         print(
-            "Acceptable sizes: {} to {}".format(
-                self.__numWithPercent(self.minAcceptableMetric),
-                self.__numWithPercent(self.maxAcceptableMetric),
-            )
+            f"Acceptable sizes: {self.__numWithPercent(self.minAcceptableMetric)} "
+            + f"to {self.__numWithPercent(self.maxAcceptableMetric)}"
         )
         self.printState()
 
     def printState(self):
         results = []
         for group in sorted(self.groups, reverse=True):
-            count = len(group.units)
             results.append(
                 (
-                    "Group {}".format(group.index),
+                    f"Group {group.index}",
                     self.__percent(group.metric),
-                    "{} ({:.2f}%)".format(count, 100 * (count / len(globals.unitlist)))
-                    if count > globals.printcap
-                    else "|".join(sorted(unit.code for unit in group.units)),
+                    "|".join(sorted(unit.code for unit in group.units)),
+                    f"{(count := len(group.units))} units ({100 * (count / len(unitlist(self.scale))):.2f}% of total)",
                 )
             )
 
@@ -238,22 +244,23 @@ class State:
                 (
                     "Unplaced",
                     self.__percent(sum(unit.metric for unit in self.unplacedUnits)),
-                    "{} units ({:.2f}% of total)".format(count, 100 * (count / len(globals.unitlist)))
-                    if count > globals.printcap
-                    else "|".join(sorted(unit.code for unit in self.unplacedUnits)),
+                    "|".join(sorted(unit.code for unit in self.unplacedUnits)),
+                    f"{count} units ({100 * (count / len(unitlist(self.scale))):.2f}% of total)",
                 )
             )
 
         length = len(max(results, key=lambda item: len(item[0]))[0])
+        max_unit_space = term_size().columns - (length + 11)
         for entry in results:
-            print(("{:" + str(length) + "} ({}): {}").format(*entry))
+            (name, percent, units, summary) = entry
+            print(f"{name:{str(length)}} ({percent:6}): {units if len(units) < max_unit_space else summary}")
         print()
 
 
 # --- Helper file reading function -------------------------------------------------------------------------------------
 
 
-def getDistanceStep(startUnit, units):
+def getDistanceStep(startUnit: Unit, units: dict[str, Unit]) -> dict[Unit, int]:
     distances = {startUnit: 0}
     dist = 1
     lastRow = [startUnit]
@@ -265,18 +272,15 @@ def getDistanceStep(startUnit, units):
                 changed.append(adjUnit)
         dist += 1
         lastRow = changed
-        print(
-            "Calculating distances: {:10.4f}%".format(100 * list(units.keys()).index(startUnit) / len(units)),
-            end="\r",
-        )
+        print(f"Calculating distances: {100 * list(units.keys()).index(startUnit.code) / len(units):10.4f}%", end="\r")
 
     return distances
 
 
-def populateDistances(units):
+def populateDistances(scale: str, units: dict[str, Unit]) -> dict[str, Unit]:
     # Attempt to read in distance
     try:
-        with open("assets/" + globals.scale + "/distance.csv", encoding="utf8", newline="") as csvfile:
+        with open(f"assets/{scale}/distance.csv", encoding="utf8", newline="") as csvfile:
             for row in csv.DictReader(csvfile, delimiter=","):
                 name = row.pop("name")
                 units[name].distances = {code: int(dist) for code, dist in row.items() if dist}
@@ -284,7 +288,7 @@ def populateDistances(units):
         for _, unit in units.items():
             unit.distances = getDistanceStep(unit, units)
         print()
-        with open("assets/" + globals.scale + "/distance.csv", "w", encoding="utf8", newline="") as csvfile:
+        with open(f"assets/{scale}/distance.csv", "w", encoding="utf8", newline="") as csvfile:
             writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=["name"] + list(units.keys()))
             writer.writeheader()
             for unit in units.values():
@@ -292,34 +296,36 @@ def populateDistances(units):
                 newRow["name"] = unit.code
                 writer.writerow(newRow)
 
+    return units
 
-def readFile():
+
+def readFile(scale: str) -> list[Unit]:
     # Read in adjacency
     adj = {}
-    with open("assets/" + globals.scale + "/adjacency.csv", encoding="utf8", newline="") as csvfile:
+    with open(f"assets/{scale}/adjacency.csv", encoding="utf8", newline="") as csvfile:
         for row in csv.reader(csvfile, delimiter=","):
             adj[row[0]] = row[1:]
 
     # Read in units
     units = {}
-    with open("assets/" + globals.scale + "/data.tsv", encoding="utf8", newline="") as csvfile:
+    with open(f"assets/{scale}/data.tsv", encoding="utf8", newline="") as csvfile:
         for row in csv.DictReader(csvfile, delimiter="\t"):
             code = row["Unit"]
             # Skip the Totals row
             if code == "Total":
                 continue
             # add the unit and metrics
-            metrics = {
-                key: int(value.strip().replace(",", "")) for (key, value) in row.items() if key in globals.allowed
+            unitMetrics = {
+                key: int(value.strip().replace(",", "")) for (key, value) in row.items() if key in metricNames(scale)
             }
-            units[code] = Unit(code, metrics)
+            units[code] = Unit(code, unitMetrics, scale)
 
     # Put adjacency in the units
     for unit in units.values():
         for adjacent in adj[unit]:
             unit.adj.add(units[adjacent])
 
-    populateDistances(units)
+    populateDistances(scale, units)
 
     sys.setrecursionlimit(max(len(units), 1000))
 
