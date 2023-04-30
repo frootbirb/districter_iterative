@@ -46,7 +46,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
             state.unplacedUnits,
         )
 
-    return (max(units, key=lambda unit: sorter(state, group, unit)), group)
+    return max(units, key=lambda unit: sorter(state, group, unit)), group
 
 
 def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
