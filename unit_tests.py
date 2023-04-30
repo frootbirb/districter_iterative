@@ -164,7 +164,7 @@ class StateTests(unittest.TestCase):
         state = logic.State(2, "T1", "test")
         self.assertEqual(state.metricID, "T1")
         self.assertEqual(state.scale, "test")
-        self.assertIsNone(state.callback)
+        self.assertIsNone(state._callback)
 
         self.assertEqual(sorted(u.code for u in state.placements), ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"])
         self.assertTrue(

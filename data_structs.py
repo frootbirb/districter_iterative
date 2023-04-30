@@ -155,12 +155,12 @@ class State:
         numGroup: int,
         metricID: str | int,
         scale: str | int,
-        callback: Callable[[list[tuple[str, int, str]]], None] | None = None,
+        callback: Callable[[str, int], None] | None = None,
     ):
         self.scale = State.parseScale(scale)
         self.metricID = State.parseMetricID(self.scale, metricID)
 
-        self.callback = callback
+        self._callback = callback
 
         for unit in unitlist(self.scale):
             unit.setCurrentMetric(self.metricID)
@@ -185,6 +185,8 @@ class State:
         else:
             self.groups[placement - 1].removeUnit(unit)
         self.placements[unit] = group.index
+        if self._callback:
+            self._callback(unit.code, group.index)
 
     def getGroupFor(self, unit: Unit) -> Group:
         return self.groups[self.placements[unit] - 1]

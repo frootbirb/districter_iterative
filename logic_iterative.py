@@ -2,6 +2,7 @@ from os import get_terminal_size as term_size
 
 from data_structs import State, Unit, Group
 from itertools import chain
+from typing import Callable
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
@@ -75,14 +76,12 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
             if doprint:
                 state.printState()
 
-    if state.callback:
-        state.callback(state.getUpdateData())
-        # TODO figure out more limited callback info?
-
     return state, (unit, group.index)
 
 
-def solve(numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback=None) -> State:
+def solve(
+    numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback: Callable[[str, int], None] | None = None
+) -> State:
     # Start the solver!
     state = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
     previousMoves = []

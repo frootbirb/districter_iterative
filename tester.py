@@ -68,7 +68,9 @@ def doParallelTests(scale: str | int, range: range):
 
 
 def stepthrough(numGroup: int, metricID: str | int, scale: str | int):
-    callback = lambda _: input()
+    def callback(s: str, i: int):
+        input()
+
     logic.doprint = True
     logic.solve(numGroup, metricID, scale, callback)
 
