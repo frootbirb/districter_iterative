@@ -44,7 +44,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
         units = (unit for unit in group.adj if state.placements[unit] == 0)
     else:
         units = chain(
-            (unit for unit in group.adj if state.placements[unit] == 0 or state.getGroupFor(unit).canLose(unit)),
+            (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
             state.unplacedUnits,
         )
 

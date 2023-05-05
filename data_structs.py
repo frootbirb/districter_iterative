@@ -87,6 +87,28 @@ class Group:
     def empty(self) -> bool:
         return len(self.units) == 0
 
+    @property
+    def isContiguous(self) -> bool:
+        units = set(self.units)
+        zones = []
+        while units:
+            starter = list(units)[0]
+            zone = {starter}
+            toCheck = {starter}
+            while toCheck:
+                next = toCheck.pop()
+                zone.add(next)
+                units.remove(next)
+                toCheck = ((next.adj & self.units) - zone) | toCheck
+            zones.append(zone)
+
+        def firstOf(zone: int) -> Unit:
+            return list(zones[zone])[0]
+
+        return all(
+            all(firstOf(i) not in firstOf(j).distances for j in range(i + 1, len(zones))) for i in range(len(zones))
+        )
+
     # TODO: hyper-optimize this. Fully half of our time is spent in this one method
     def addUnit(self, unit: Unit):
         # append the unit into this group
