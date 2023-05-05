@@ -1,6 +1,6 @@
 from os import get_terminal_size as term_size
 
-from data_structs import State, Unit, Group
+from data_structs import State, Unit, Group, printState
 from itertools import chain
 from typing import Callable
 
@@ -37,6 +37,7 @@ def getNext(state: State) -> tuple[Unit, Group]:
     )
 
     # Get the units which might be viable
+    # TODO: can we skip these size reductions?
     if group.empty:
         units = state.unplacedUnits
     elif any(state.placements[u] == 0 for u in group.adj):
@@ -62,7 +63,7 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
     state.addToGroup(unit, group)
 
     if doprint:
-        state.printState()
+        printState(state)
 
     # If every group has some adjacent units, we can start checking for enclosures
     if all(len(group.adj) > 0 for group in state.groups):
@@ -74,7 +75,7 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
             for unplaced in unplacedUnits:
                 state.addToGroup(unplaced, group)
             if doprint:
-                state.printState()
+                printState(state)
 
     return state, (unit, group.index)
 
@@ -99,4 +100,4 @@ def solve(
 
 
 if __name__ == "__main__":
-    solve(3, scale=0)
+    solve(3, scale=1)

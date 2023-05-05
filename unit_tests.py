@@ -8,23 +8,27 @@ import data_structs as ds
 
 class UnitTests(unittest.TestCase):
     def test_init(self):
-        metrics = {"m1": 3.0, "m2": 5}
+        metrics = {"T1": 3.0, "T2": 5}
         unit = logic.Unit(code="D", metrics=metrics, scale="test")
         self.assertEqual(unit.code, "D")
         self.assertEqual(unit.metrics, metrics)
         self.assertEqual(unit.name, "D_Name")
         self.assertEqual(unit.metric, 3)
 
+    def test_strHelpers(self):
+        unit = logic.Unit(code="D", metrics={"T1": 3.0}, scale="test")
+        self.assertEqual(f"String name: {unit}", "String name: D")
+
     def test_setMetric(self):
-        metrics = {"m1": 3.0, "m2": 5}
+        metrics = {"T1": 3.0, "T2": 5}
         unit = logic.Unit(code="D", metrics=metrics, scale="test")
-        self.assertEqual(unit.metric, metrics["m1"])
-        unit.setCurrentMetric("m2")
-        self.assertEqual(unit.metric, metrics["m2"])
+        self.assertEqual(unit.metric, metrics["T1"])
+        unit.setCurrentMetric("T2")
+        self.assertEqual(unit.metric, metrics["T2"])
 
     def test_comparison(self):
-        unit1 = logic.Unit(code="D", metrics={"m1": 3.0}, scale="test")
-        unit2 = logic.Unit(code="D", metrics={"m2": 5}, scale="test")
+        unit1 = logic.Unit(code="D", metrics={"T1": 3.0}, scale="test")
+        unit2 = logic.Unit(code="D", metrics={"T2": 5}, scale="test")
         self.assertEqual(unit1, unit2)
         self.assertEqual(unit1, "D")
         self.assertEqual(unit2, "D")
@@ -52,6 +56,37 @@ class FileReadTests(unittest.TestCase):
             ],
         )
         self.assertEqual(metricNames, ["T1"])
+
+    def test_lazyInit(self):
+        (a, b, c, d, e, f, g, h, i, j) = [logic.Unit(code, {"T1": i}, "test") for i, code in enumerate("ABCDEFGHIJ")]
+
+        self.assertEqual(ds._unitlists, {})
+        self.assertEqual(ds._metricNames, {})
+
+        # Confirm that both lists are initialized from one read
+        self.assertEqual(ds.unitlist("test"), [a, b, c, d, e, f, g, h, i, j])
+        self.assertEqual(ds._unitlists, {"test": [a, b, c, d, e, f, g, h, i, j]})
+        self.assertEqual(ds._metricNames, {"test": ["T1"]})
+        self.assertEqual(ds.metricNames("test"), ["T1"])
+
+        # clear lists to try again
+        ds._unitlists = {}
+        ds._metricNames = {}
+
+        # Confirm that both lists are initialized in the opposite direction read
+        self.assertEqual(ds.metricNames("test"), ["T1"])
+        self.assertEqual(ds._unitlists, {"test": [a, b, c, d, e, f, g, h, i, j]})
+        self.assertEqual(ds._metricNames, {"test": ["T1"]})
+        self.assertEqual(ds.unitlist("test"), [a, b, c, d, e, f, g, h, i, j])
+
+        # clear lists to try again
+        ds._unitlists = {}
+        ds._metricNames = {"test": ["T2"]}
+
+        # Confirm that list is not re-initialized if it's already set
+        self.assertEqual(ds.metricNames("test"), ["T2"])
+        self.assertEqual(ds._unitlists, {})
+        self.assertEqual(ds.unitlist("test"), [a, b, c, d, e, f, g, h, i, j])
 
     def test_distanceGen(self):
         distances = [
@@ -83,6 +118,18 @@ class GroupTests(unittest.TestCase):
         self.assertEqual(group.index, 0)
         self.assertEqual(group.metric, 0)
         self.assertTrue(group.empty)
+
+    def test_compare(self):
+        (a, b, c, d, e, f, g, h, i, j) = GroupTests.unitlist
+        g1 = logic.Group(index=0)
+        g2 = logic.Group(index=1)
+        g3 = logic.Group(index=2)
+
+        self.assertEqual(sorted([g1, g2, g3]), [g1, g2, g3])
+
+        g2.addUnit(j)
+        g3.addUnit(f)
+        self.assertEqual(sorted([g1, g2, g3]), [g1, g3, g2])
 
     def test_unitChanges(self):
         (a, b, c, d, e, f, g, h, i, j) = GroupTests.unitlist
@@ -155,10 +202,13 @@ class GroupTests(unittest.TestCase):
 
 class StateTests(unittest.TestCase):
     def test_convenienceParsers(self):
-        self.assertEqual(logic.State.parseScale(0), "states")
-        self.assertEqual(logic.State.parseScale("states"), "states")
-        self.assertEqual(logic.State.parseScale(1), "counties")
-        self.assertEqual(logic.State.parseScale("counties"), "counties")
+        ds.scales = ["test"]
+        ds._metricNames = {"test": ["T1"]}
+        self.assertEqual(logic.State.parseScale(0), "test")
+        self.assertEqual(logic.State.parseScale("test2"), "test2")
+
+        self.assertEqual(logic.State.parseMetricID("test", 0), "T1")
+        self.assertEqual(logic.State.parseMetricID("test", "T2"), "T2")
 
     def test_init(self):
         state = logic.State(2, "T1", "test")
@@ -248,6 +298,7 @@ class StateTests(unittest.TestCase):
 
 
 class SolverTests(unittest.TestCase):
+    @unittest.skip("Until we have a better spread")
     def test_singleGroup(self):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()

@@ -3,3 +3,4 @@
 distance.csv
 *.profile
 .vscode/settings.json
+.coverage

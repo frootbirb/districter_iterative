@@ -62,9 +62,6 @@ class Unit:
     def __str__(self) -> str:
         return self.code
 
-    def __repr__(self) -> str:
-        return self.code
-
     def __eq__(self, other: "str | Unit") -> bool:
         return self.code == other
 
@@ -194,6 +191,7 @@ class State:
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
         return any(self.placements[unit] == 0 for unit in group.adj)
 
+    # TODO: make this faster
     def generateDisconnectedGroups(self, group: Group) -> Iterator[set[Unit]]:
         # Get all units adjacent to the current group which are not in a group
         borders = []
@@ -225,6 +223,8 @@ class State:
         for border in borders:
             yield border
 
+    # TODO: update Plotly drawer and delete the below
+
     def getDummyData(self) -> dict[str, list[str]]:
         result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
         for unit in self.placements:
@@ -249,56 +249,63 @@ class State:
     def getDummyUpdateData(self) -> list[tuple[str, int, str]]:
         return [(unit.name, unit.metric, "0") for unit in self.placements]
 
-    def __percent(self, val: float) -> str:
-        return f"{100 * val / self.sumUnitMetrics:.2f}%"
 
-    def __numWithPercent(self, val: float) -> str:
-        return f"{val:,.2f} ({self.__percent(val)})"
+# --- Printing methods -------------------------------------------------------------------------------------------------
 
-    def printResult(self):
-        print(f"--------------- + {'Complete' if len(self.unplacedUnits) == 0 else 'Failure'} + ---------------")
-        print(f"Created {len(self.groups)} groups of {self.scale} with criteria {self.metricID}")
-        if len(self.groups) > 1:
-            smallest = min(self.groups).metric
-            largest = max(self.groups).metric
-            print(
-                f"Final spread: {self.__numWithPercent(largest - smallest)}, "
-                f"from {self.__numWithPercent(smallest)} to {self.__numWithPercent(largest)}"
-            )
+
+def percent(state: State, val: float) -> str:
+    return f"{100 * val / state.sumUnitMetrics:.2f}%"
+
+
+def numWithPercent(state: State, val: float) -> str:
+    return f"{val:,.2f} ({percent(state, val)})"
+
+
+def printResult(state: State):
+    print(f"--------------- + {'Complete' if len(state.unplacedUnits) == 0 else 'Failure'} + ---------------")
+    print(f"Created {len(state.groups)} groups of {state.scale} with criteria {state.metricID}")
+    if len(state.groups) > 1:
+        smallest = min(state.groups).metric
+        largest = max(state.groups).metric
         print(
-            f"Acceptable sizes: {self.__numWithPercent(self.minAcceptableMetric)} "
-            f"to {self.__numWithPercent(self.maxAcceptableMetric)}"
+            f"Final spread: {numWithPercent(state, largest - smallest)}, "
+            f"from {numWithPercent(state, smallest)} to {numWithPercent(state, largest)}"
         )
-        self.printState()
+    print(
+        f"Acceptable sizes: {numWithPercent(state, state.minAcceptableMetric)} "
+        f"to {numWithPercent(state, state.maxAcceptableMetric)}"
+    )
+    printState(state)
 
-    def printState(self):
-        results = []
-        for group in sorted(self.groups, reverse=True):
-            results.append(
-                (
-                    f"Group {group.index}",
-                    self.__percent(group.metric),
-                    "|".join(sorted(unit.code for unit in group.units)),
-                    f"{(count := len(group.units))} units ({100 * (count / len(self.placements)):.2f}% of total)",
-                )
+
+def printState(state: State):
+    results = []
+    for group in sorted(state.groups, reverse=True):
+        results.append(
+            (
+                f"Group {group.index}",
+                percent(state, group.metric),
+                "|".join(sorted(unit.code for unit in group.units)),
+                f"{(count := len(group.units))} units ({100 * (count / len(state.placements)):.2f}% of total)",
             )
+        )
 
-        if (count := len(self.unplacedUnits)) > 0:
-            results.append(
-                (
-                    "Unplaced",
-                    self.__percent(sum(unit.metric for unit in self.unplacedUnits)),
-                    "|".join(sorted(unit.code for unit in self.unplacedUnits)),
-                    f"{count} units ({100 * (count / len(self.placements)):.2f}% of total)",
-                )
+    if (count := len(state.unplacedUnits)) > 0:
+        results.append(
+            (
+                "Unplaced",
+                percent(state, sum(unit.metric for unit in state.unplacedUnits)),
+                "|".join(sorted(unit.code for unit in state.unplacedUnits)),
+                f"{count} units ({100 * (count / len(state.placements)):.2f}% of total)",
             )
+        )
 
-        length = len(max(results, key=lambda item: len(item[0]))[0])
-        max_unit_space = term_size().columns - (length + 11)
-        for entry in results:
-            (name, percent, units, summary) = entry
-            print(f"{name:{str(length)}} ({percent:6}): {units if len(units) < max_unit_space else summary}")
-        print()
+    length = len(max(results, key=lambda item: len(item[0]))[0])
+    max_unit_space = term_size().columns - (length + 11)
+    for entry in results:
+        (name, pct, units, summary) = entry
+        print(f"{name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}")
+    print()
 
 
 # --- Helper file reading function -------------------------------------------------------------------------------------
