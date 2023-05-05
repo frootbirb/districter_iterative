@@ -1,4 +1,5 @@
 from os import remove as removeFile
+from itertools import starmap
 import unittest
 import logic_iterative as logic
 import data_structs as ds
@@ -130,6 +131,42 @@ class GroupTests(unittest.TestCase):
         g2.addUnit(j)
         g3.addUnit(f)
         self.assertEqual(sorted([g1, g2, g3]), [g1, g3, g2])
+
+    def test_isContiguous(self):
+        (a, b, c, d, e, f, g, h, i, j) = GroupTests.unitlist
+        group = logic.Group(index=0)
+        self.assertTrue(group.isContiguous)
+
+        group.addUnit(a)
+        self.assertTrue(group.isContiguous)
+        
+        group.addUnit(d)
+        self.assertTrue(group.isContiguous)
+
+        group.addUnit(c)
+        self.assertTrue(group.isContiguous)
+
+        group.addUnit(b)
+        self.assertTrue(group.isContiguous)
+
+        group.addUnit(h)
+        self.assertFalse(group.isContiguous)
+
+        group.addUnit(i)
+        self.assertFalse(group.isContiguous)
+
+        group.addUnit(f)
+        self.assertTrue(group.isContiguous)
+
+        group.removeUnit(h)
+        self.assertFalse(group.isContiguous)
+
+        group.removeUnit(i)
+        self.assertTrue(group.isContiguous)
+
+        group.removeUnit(d)
+        self.assertTrue(group.isContiguous)
+
 
     def test_unitChanges(self):
         (a, b, c, d, e, f, g, h, i, j) = GroupTests.unitlist
@@ -359,6 +396,25 @@ class SolverTests(unittest.TestCase):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
         self.assertEqual(state.placements, {a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1})
+
+    def test_valgrind(self):
+        def getNextParam(scale: str, range: range):
+            for numGroup in range:
+                for metricID in ds.metricNames(scale):
+                    yield numGroup, metricID, scale
+        
+        for state in starmap(logic.solve, getNextParam("states", range(2, 6))):
+            for g in state.groups:
+                self.assertLess(
+                    g.metric, state.sumUnitMetrics,
+                    f"Group {g.index} incorrectly sized for {state.metricID}, {state.scale}, {len(state.groups)}"
+                )
+
+                self.assertTrue(
+                    g.isContiguous,
+                    f"Group {g.index} discontiguous for {state.metricID}, {state.scale}, {len(state.groups)}\n"
+                    "|".join(sorted(unit.code for unit in g.units)),
+                )
 
 
 if __name__ == "__main__":
