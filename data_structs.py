@@ -216,7 +216,7 @@ class State:
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
         return any(self.placements[unit] == 0 for unit in group.adj)
 
-    # TODO: make this faster
+    # TODO: this is the second-slowest method
     def generateDisconnectedGroups(self, group: Group) -> Iterator[set[Unit]]:
         # Get all units adjacent to the current group which are not in a group
         borders = []

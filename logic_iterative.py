@@ -37,7 +37,6 @@ def getNext(state: State) -> tuple[Unit, Group]:
     )
 
     # Get the units which might be viable
-    # TODO: can we skip these size reductions?
     if group.empty:
         units = state.unplacedUnits
     elif any(state.placements[u] == 0 for u in group.adj):

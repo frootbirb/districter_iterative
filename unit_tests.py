@@ -391,7 +391,7 @@ class SolverTests(unittest.TestCase):
                 self.assertEqual(gr, state.groups[vals["group"][i]])
                 state.addToGroup(u, gr)
 
-    @unittest.skip("TODO Until we have a better spread")
+    # TODO: test more complex scenarios
     def test_singleGroup(self):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
