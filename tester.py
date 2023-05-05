@@ -58,7 +58,7 @@ def doTests(scale: str | int, range: range):
     scale = logic.State.parseScale(scale)
     for numGroup, metricID, scale in getNextParam(scale, range):
         print(f"Created {numGroup} groups with criteria {metricID}")
-        ds.printResult(logic.solve(numGroup, metricID, scale))
+        logic.printState(logic.solve(numGroup, metricID, scale))
 
 
 def doParallelTests(scale: str | int, range: range):

@@ -227,64 +227,6 @@ class State:
             yield border
 
 
-# --- Printing methods -------------------------------------------------------------------------------------------------
-
-
-def percent(state: State, val: float) -> str:
-    return f"{100 * val / state.sumUnitMetrics:.2f}%"
-
-
-def numWithPercent(state: State, val: float) -> str:
-    return f"{val:,.2f} ({percent(state, val)})"
-
-
-def printResult(state: State):
-    print(f"--------------- + {'Complete' if len(state.unplacedUnits) == 0 else 'Failure'} + ---------------")
-    print(f"Created {len(state.groups)} groups of {state.scale} with criteria {state.metricID}")
-    if len(state.groups) > 1:
-        smallest = min(state.groups).metric
-        largest = max(state.groups).metric
-        print(
-            f"Final spread: {numWithPercent(state, largest - smallest)}, "
-            f"from {numWithPercent(state, smallest)} to {numWithPercent(state, largest)}"
-        )
-    print(
-        f"Acceptable sizes: {numWithPercent(state, state.minAcceptableMetric)} "
-        f"to {numWithPercent(state, state.maxAcceptableMetric)}"
-    )
-    printState(state)
-
-
-def printState(state: State):
-    results = []
-    for group in sorted(state.groups, reverse=True):
-        results.append(
-            (
-                f"Group {group.index}",
-                percent(state, group.metric),
-                "|".join(sorted(unit.code for unit in group.units)),
-                f"{(count := len(group.units))} units ({100 * (count / len(state.placements)):.2f}% of total)",
-            )
-        )
-
-    if (count := len(state.unplacedUnits)) > 0:
-        results.append(
-            (
-                "Unplaced",
-                percent(state, sum(unit.metric for unit in state.unplacedUnits)),
-                "|".join(sorted(unit.code for unit in state.unplacedUnits)),
-                f"{count} units ({100 * (count / len(state.placements)):.2f}% of total)",
-            )
-        )
-
-    length = len(max(results, key=lambda item: len(item[0]))[0])
-    max_unit_space = term_size().columns - (length + 11)
-    for entry in results:
-        (name, pct, units, summary) = entry
-        print(f"{name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}")
-    print()
-
-
 # --- Helper file reading function -------------------------------------------------------------------------------------
 
 
