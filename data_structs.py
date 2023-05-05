@@ -62,6 +62,9 @@ class Unit:
     def __str__(self) -> str:
         return self.code
 
+    def __repr__(self) -> str:
+        return self.code
+
     def __eq__(self, other: "str | Unit") -> bool:
         return self.code == other
 
@@ -222,32 +225,6 @@ class State:
 
         for border in borders:
             yield border
-
-    # TODO: update Plotly drawer and delete the below
-
-    def getDummyData(self) -> dict[str, list[str]]:
-        result = {new_list: [] for new_list in ["unit", "code", "group", "metric"]}
-        for unit in self.placements:
-            result["unit"].append(unit.name)
-            result["code"].append(unit.code)
-            result["group"].append("0")
-            result["metric"].append(unit.metric)
-
-        return result
-
-    def getCurrentData(self) -> dict[str, list[str]]:
-        result = self.getDummyData()
-
-        for placement in self.placements.values():
-            result["group"][2] = str(placement)
-
-        return result
-
-    def getUpdateData(self) -> list[tuple[str, int, str]]:
-        return [(unit.name, unit.metric, str(placement)) for unit, placement in self.placements.items()]
-
-    def getDummyUpdateData(self) -> list[tuple[str, int, str]]:
-        return [(unit.name, unit.metric, "0") for unit in self.placements]
 
 
 # --- Printing methods -------------------------------------------------------------------------------------------------
