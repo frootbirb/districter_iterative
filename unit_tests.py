@@ -297,14 +297,68 @@ class StateTests(unittest.TestCase):
         self.assertEqual(list(state.generateDisconnectedGroups(g2)), [{i, j}])
 
 
+class PrintTests(unittest.TestCase):
+    def test_percent(self):
+        for numGroups in range(1, 4):
+            state = logic.State(numGroups, "T1", "test")
+            self.assertEqual(logic.percent(state, 0), "0.00%")
+            self.assertEqual(logic.percent(state, 45), "100.00%")
+            self.assertEqual(logic.percent(state, 7), "15.56%")
+
+    def test_numWithPercent(self):
+        for numGroups in range(1, 4):
+            state = logic.State(numGroups, "T1", "test")
+            self.assertEqual(logic.numWithPercent(state, 0), "0.00 (0.00%)")
+            self.assertEqual(logic.numWithPercent(state, 45), "45.00 (100.00%)")
+            self.assertEqual(logic.numWithPercent(state, 7), "7.00 (15.56%)")
+
+    def test_infoDumpStrs(self):
+        # Just confirming no crashes
+        for numGroups in range(1, 4):
+            state = logic.State(numGroups, "T1", "test")
+            stats = logic.getStatStr(state)
+            placements = logic.getPlacementStr(state)
+
+
 class SolverTests(unittest.TestCase):
-    @unittest.skip("Until we have a better spread")
+    def test_sorter(self):
+        state = logic.State(6, "T1", "test")
+        (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
+        (g1, g2, g3, g4, g5, g6) = state.groups
+        # Sorted in order of metric, except j which would be too large and is deprioritized
+        self.assertEqual(
+            sorted(state.placements, key=lambda unit: logic.sorter(state, g1, unit), reverse=True),
+            [i, h, g, f, e, d, c, b, a, j],
+        )
+        state.addToGroup(i, g1)
+        # Sorted in order of metric, except j, and i which is placed
+        self.assertEqual(
+            sorted(state.placements, key=lambda unit: logic.sorter(state, g2, unit), reverse=True),
+            [h, g, f, e, d, c, b, a, j, i],
+        )
+
+    # TODO: test more complex scenarios
+    def test_getNext(self):
+        state = logic.State(1, "T1", "test")
+        (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
+        expected = {
+            1: {"unit": [j, i, h], "group": [0, 0, 0]},
+            2: {"unit": [j, i, h], "group": [0, 1, 1]},
+            3: {"unit": [j, i, h], "group": [0, 1, 2]},
+        }
+        for numGroup, vals in expected.items():
+            state = logic.State(numGroup, "T1", "test")
+            for i in range(3):
+                u, gr = logic.getNext(state)
+                self.assertEqual(u, vals["unit"][i])
+                self.assertEqual(gr, state.groups[vals["group"][i]])
+                state.addToGroup(u, gr)
+
+    @unittest.skip("TODO Until we have a better spread")
     def test_singleGroup(self):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
         self.assertEqual(state.placements, {a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1})
-
-    # TODO: improve this spread
 
 
 if __name__ == "__main__":
