@@ -124,7 +124,7 @@ def getStatStr(state: State) -> str:
             else ""
         )
         + f"Acceptable sizes: {numWithPercent(state, state.minAcceptableMetric)} "
-        f"to {numWithPercent(state, state.maxAcceptableMetric)}\n"
+        f"to {numWithPercent(state, state.maxAcceptableMetric)}"
     )
 
 
@@ -151,15 +151,17 @@ def getPlacementStr(state: State) -> str:
         )
 
     length = len(max(results, key=lambda item: len(item[0]))[0])
-    max_unit_space = term_size().columns - (length + 11)
+    max_unit_space = term_size().columns - (length + 12)
     return "\n".join(
-        f"{name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}"
+        f" {name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}"
         for (name, pct, units, summary) in results
     )
 
 
 def printState(state: State):
-    print(getStatStr(state), getPlacementStr(state))
+    print(getStatStr(state))
+    print(getPlacementStr(state))
+    print()
 
 
 if __name__ == "__main__":
