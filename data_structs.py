@@ -87,6 +87,7 @@ class Group:
     def empty(self) -> bool:
         return len(self.units) == 0
 
+    # TODO: hyper-optimize this. Fully half of our time is spent in this one method
     def addUnit(self, unit: Unit):
         # append the unit into this group
         self.units.add(unit)
@@ -97,10 +98,8 @@ class Group:
         # for each adjacent unit, add it to the adjacency list if it's not already in the group
         self.adj |= unit.adj - self.units
         for u, dist in unit.distances.items():
-            if u in self.distanceSum:
-                self.distanceSum[u] += dist
-            elif dist != 0:
-                self.distanceSum[u] = dist
+            if dist != 0:
+                self.distanceSum[u] = dist + self.distanceSum.get(u, 0)
 
     def removeUnit(self, unit: Unit):
         # remove the unit from this group
@@ -115,9 +114,10 @@ class Group:
             if all(u not in self.units for u in adjunit.adj):
                 self.adj.remove(adjunit)
         for u, dist in unit.distances.items():
-            self.distanceSum[u] -= dist
-            if self.distanceSum[u] == 0:
+            if self.distanceSum[u] == dist:
                 self.distanceSum.pop(u)
+            else:
+                self.distanceSum[u] -= dist
 
     def canLose(self, unit: Unit) -> bool:
         border = unit.adj & self.units
