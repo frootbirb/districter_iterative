@@ -26,7 +26,7 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
     )
 
 
-def getNext(state: State) -> tuple[Unit, Group]:
+def getNext(state: State) -> tuple[Unit | None, Group]:
     group = min(
         state.groups,
         key=lambda group: (
@@ -47,11 +47,14 @@ def getNext(state: State) -> tuple[Unit, Group]:
             state.unplacedUnits,
         )
 
-    return max(units, key=lambda unit: sorter(state, group, unit)), group
+    return max(units, key=lambda unit: sorter(state, group, unit), default=None), group
 
 
-def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
+def doStep(state: State) -> tuple[State, Unit | None, int]:
     unit, group = getNext(state)
+
+    if not unit:
+        return state, unit, group.index
 
     if doprint:
         if (placement := state.placements[unit]) == 0:
@@ -76,7 +79,7 @@ def doStep(state: State) -> tuple[State, tuple[Unit, int]]:
             if doprint:
                 printState(state)
 
-    return state, (unit, group.index)
+    return state, unit, group.index
 
 
 def solve(
@@ -93,7 +96,7 @@ def solve(
         if len(previousMoves) > 5:
             previousMoves.pop()
 
-        state, last = doStep(state)
+        state, *last = doStep(state)
 
     return state
 

@@ -139,7 +139,7 @@ class GroupTests(unittest.TestCase):
 
         group.addUnit(a)
         self.assertTrue(group.isContiguous)
-        
+
         group.addUnit(d)
         self.assertTrue(group.isContiguous)
 
@@ -166,7 +166,6 @@ class GroupTests(unittest.TestCase):
 
         group.removeUnit(d)
         self.assertTrue(group.isContiguous)
-
 
     def test_unitChanges(self):
         (a, b, c, d, e, f, g, h, i, j) = GroupTests.unitlist
@@ -387,9 +386,11 @@ class SolverTests(unittest.TestCase):
             state = logic.State(numGroup, "T1", "test")
             for i in range(3):
                 u, gr = logic.getNext(state)
+                self.assertIsNotNone(u)
                 self.assertEqual(u, vals["unit"][i])
                 self.assertEqual(gr, state.groups[vals["group"][i]])
-                state.addToGroup(u, gr)
+                if u:
+                    state.addToGroup(u, gr)
 
     # TODO: test more complex scenarios
     def test_singleGroup(self):
@@ -398,16 +399,18 @@ class SolverTests(unittest.TestCase):
         self.assertEqual(state.placements, {a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1})
 
     def test_valgrind(self):
-        def getNextParam(scale: str, range: range):
-            for numGroup in range:
-                for metricID in ds.metricNames(scale):
-                    yield numGroup, metricID, scale
-        
-        for state in starmap(logic.solve, getNextParam("states", range(2, 6))):
+        def getNextParam():
+            for scale in ["states"]:  # ds.scales:
+                for numGroup in range(1, 6):
+                    for metricID in ds.metricNames(scale):
+                        yield numGroup, metricID, scale
+
+        for state in starmap(logic.solve, getNextParam()):
             for g in state.groups:
                 self.assertLess(
-                    g.metric, state.sumUnitMetrics,
-                    f"Group {g.index} incorrectly sized for {state.metricID}, {state.scale}, {len(state.groups)}"
+                    g.metric,
+                    state.maxAcceptableMetric * 1.3,
+                    f"Group {g.index} incorrectly sized for {state.metricID}, {state.scale}, {len(state.groups)}",
                 )
 
                 self.assertTrue(
