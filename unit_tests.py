@@ -415,8 +415,7 @@ class SolverTests(unittest.TestCase):
 
                 self.assertTrue(
                     g.isContiguous,
-                    f"Group {g.index} discontiguous for {state.metricID}, {state.scale}, {len(state.groups)}\n"
-                    "|".join(sorted(unit.code for unit in g.units)),
+                    f"Group {g.index} discontiguous for {state.metricID}, {state.scale}, {len(state.groups)}"
                 )
 
 
