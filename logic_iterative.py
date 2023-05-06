@@ -31,7 +31,7 @@ def getNext(state: State) -> tuple[Unit | None, Group]:
         state.groups,
         key=lambda group: (
             # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
-            -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
+            -(group.empty or len(group.adj) == 0),
             group.metric,
         ),
     )
@@ -44,7 +44,7 @@ def getNext(state: State) -> tuple[Unit | None, Group]:
     else:
         units = chain(
             (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
-            state.unplacedUnits,
+            (unit for unit in state.unplacedUnits if all(u not in unit.distances for u in group.units)),
         )
 
     return max(units, key=lambda unit: sorter(state, group, unit), default=None), group
@@ -65,7 +65,7 @@ def doStep(state: State) -> tuple[State, Unit | None, int]:
     state.addToGroup(unit, group)
 
     if doprint:
-        printState(state)
+        print(getPlacementStr(state))
 
     # If every group has some adjacent units, we can start checking for enclosures
     if all(len(group.adj) > 0 for group in state.groups):
