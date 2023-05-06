@@ -67,8 +67,8 @@ def doStep(state: State) -> tuple[State, Unit | None, int]:
     if doprint:
         print(getPlacementStr(state))
 
-    # If every group has some adjacent units, we can start checking for enclosures
-    if all(len(group.adj) > 0 for group in state.groups):
+    # If half the units are placed, we can start checking for enclosures
+    if len(state.unplacedUnits)*2 < len(state.placements):
         for unplacedUnits in state.generateDisconnectedGroups(group):
             if doprint:
                 unplacedCount = len(unplacedUnits)
