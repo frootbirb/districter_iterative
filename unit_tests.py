@@ -386,7 +386,7 @@ class SolverTests(unittest.TestCase):
         for numGroup, vals in expected.items():
             state = logic.State(numGroup, "T1", "test")
             for i in range(3):
-                u, gr = logic.getNext(state)
+                u, gr = next(logic.getNext(state))
                 self.assertIsNotNone(u)
                 self.assertEqual(u, vals["unit"][i])
                 self.assertEqual(gr, state.groups[vals["group"][i]])
@@ -413,7 +413,7 @@ class SolverTests(unittest.TestCase):
             for g in state.groups:
                 self.assertLess(
                     g.metric,
-                    state.avgGroupMetric * 1.5,
+                    state.avgGroupMetric * 1.315,
                     f"Group {g.index} incorrectly sized for {state.metricID}, {state.scale}, {len(state.groups)}",
                 )
 

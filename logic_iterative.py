@@ -32,7 +32,7 @@ def getPlaceableUnitsFor(state: State, group: Group) -> Iterator[Unit]:
         )
 
 
-def getNext(state: State) -> tuple[Unit | None, Group]:
+def getNext(state: State) -> Iterator[tuple[Unit | None, Group]]:
     for group in sorted(
         state.groups,
         key=lambda group: (
@@ -41,65 +41,67 @@ def getNext(state: State) -> tuple[Unit | None, Group]:
             group.metric,
         ),
     ):
-        retMax = (
-            max(getPlaceableUnitsFor(state, group), key=lambda unit: sorter(state, group, unit), default=None),
-            group,
-        )
-
-        if retMax:
-            return retMax
+        for unit in sorted(
+            getPlaceableUnitsFor(state, group), key=lambda unit: sorter(state, group, unit), reverse=True
+        ):
+            yield unit, group
 
     return None, state.groups[0]
 
 
-def doStep(state: State) -> tuple[State, Unit | None, int]:
-    unit, group = getNext(state)
+def doStep(
+    state: State, previousMoves: list[tuple[Unit, int, int]]
+) -> tuple[State, None, None, None] | tuple[State, Unit, int, int]:
+    for unit, group in getNext(state):
+        if not unit:
+            break
+        elif (unit, (prevPlacement := state.placements[unit]), group.index) in previousMoves:
+            break
 
-    if not unit:
-        return state, unit, 0
+        if doprint:
+            if prevPlacement == 0:
+                print(f"{group.index}: Adding {unit}")
+            else:
+                print(f"{group.index}: Stealing {unit} from {prevPlacement}")
 
-    if doprint:
-        if (placement := state.placements[unit]) == 0:
-            print(f"{group.index}: Adding {unit}")
-        else:
-            print(f"{group.index}: Stealing {unit} from {placement}")
+        state.addToGroup(unit, group)
 
-    state.addToGroup(unit, group)
+        if doprint:
+            print(getPlacementStr(state))
 
-    if doprint:
-        print(getPlacementStr(state))
+        # If half the units are placed, we can start checking for enclosures
+        if len(state.unplacedUnits) * 2 < len(state.placements):
+            for unplacedUnits in state.generateDisconnectedGroups(group):
+                if doprint:
+                    unplacedCount = len(unplacedUnits)
+                    longEnough = term_size().columns > unplacedCount * 4 + 12
+                    print(f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}")
+                for unplaced in unplacedUnits:
+                    state.addToGroup(unplaced, group)
+                if doprint:
+                    printState(state)
 
-    # If half the units are placed, we can start checking for enclosures
-    if len(state.unplacedUnits) * 2 < len(state.placements):
-        for unplacedUnits in state.generateDisconnectedGroups(group):
-            if doprint:
-                unplacedCount = len(unplacedUnits)
-                longEnough = term_size().columns > unplacedCount * 4 + 12
-                print(f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}")
-            for unplaced in unplacedUnits:
-                state.addToGroup(unplaced, group)
-            if doprint:
-                printState(state)
+        return state, unit, group.index, prevPlacement
 
-    return state, unit, group.index
+    return state, None, None, None
 
 
 def solve(
     numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback: Callable[[str, int], None] | None = None
 ) -> State:
     # Start the solver!
-    state = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
-    previousMoves = []
-    last = (0, 0)
-    while (
-        len(state.unplacedUnits) != 0
-        or any(group.metric < state.avgGroupMetric - state.deviation for group in state.groups)
-    ) and last not in previousMoves:
-        previousMoves.insert(0, last)
-        if len(previousMoves) > 5:
-            previousMoves.pop()
+    state: State = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
+    previousMoves: list[tuple[Unit, int, int]] = []
+    while len(state.unplacedUnits) != 0 or any(
+        group.metric < state.avgGroupMetric - state.deviation for group in state.groups
+    ):
+        state, unit, placement, prevPlacement = doStep(state, previousMoves)
+        if not unit or not placement or prevPlacement == None:
+            break
 
-        state, *last = doStep(state)
+        previousMoves.append((unit, placement, prevPlacement))
+        if len(previousMoves) > 5:
+            previousMoves.pop(0)
 
     return state
 
