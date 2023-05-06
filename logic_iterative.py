@@ -10,7 +10,6 @@ doprint = False
 
 
 def sorter(state: State, group: Group, unit: Unit) -> tuple:
-    # TODO can this be optimized? Call methods less often, or cache?
     return (
         # Prioritize unplaced units
         state.placements[unit] == 0,
