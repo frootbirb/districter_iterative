@@ -193,12 +193,7 @@ class State:
 
         unitMetrics = [unit.metric for unit in unitlist(self.scale)]
         self.sumUnitMetrics = sum(unitMetrics)
-        equalSplit = self.sumUnitMetrics / numGroup
-        largestUnitMetric = max(unitMetrics)
-        # The maximum acceptable size is 105% of an even split, or the largest single unit
-        self.maxAcceptableMetric = max(equalSplit * 1.05, largestUnitMetric)
-        # The minimum acceptable size is 95% of an even split
-        self.minAcceptableMetric = equalSplit * 0.95
+        self.avgGroupMetric = self.sumUnitMetrics / numGroup
 
     def addToGroup(self, unit: Unit, group: Group):
         group.addUnit(unit)

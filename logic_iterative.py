@@ -13,15 +13,10 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
     return (
         # Prioritize unplaced units
         state.placements[unit] == 0,
-        # Prioritize units that don't push this over the max metric
-        unit.metric + group.metric < state.maxAcceptableMetric,
-        # Prioritize units that don't push the target under the minimum size
-        (oldGroup := state.getGroupFor(unit)).metric - unit.metric > state.minAcceptableMetric,
-        # Prioritize stealing from a larger group
-        oldGroup.metric,
         # Prioritize shorter distance
         -group.distanceSum.get(unit, float("inf")),
-        unit.metric,
+        # Prioritize units that bring this group as close as possible to the average
+        -abs(state.avgGroupMetric - unit.metric - group.metric),
     )
 
 
@@ -89,7 +84,7 @@ def solve(
     previousMoves = []
     last = (0, 0)
     while (
-        len(state.unplacedUnits) != 0 or any(group.metric < state.minAcceptableMetric for group in state.groups)
+        len(state.unplacedUnits) != 0 or any(group.metric < state.avgGroupMetric * 0.95 for group in state.groups)
     ) and last not in previousMoves:
         previousMoves.insert(0, last)
         if len(previousMoves) > 5:
@@ -122,8 +117,8 @@ def getStatStr(state: State) -> str:
             if len(state.groups) > 1
             else ""
         )
-        + f"Acceptable sizes: {numWithPercent(state, state.minAcceptableMetric)} "
-        f"to {numWithPercent(state, state.maxAcceptableMetric)}"
+        + f"Acceptable sizes: {numWithPercent(state, state.avgGroupMetric * 0.95)} "
+        f"to {numWithPercent(state, state.avgGroupMetric * 1.05)}"
     )
 
 
