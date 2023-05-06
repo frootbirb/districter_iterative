@@ -30,7 +30,7 @@ def getNext(state: State) -> tuple[Unit | None, Group]:
         state.groups,
         key=lambda group: (
             # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
-            -(group.empty or len(group.adj) == 0),
+            -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
             group.metric,
         ),
     )
@@ -67,7 +67,7 @@ def doStep(state: State) -> tuple[State, Unit | None, int]:
         print(getPlacementStr(state))
 
     # If half the units are placed, we can start checking for enclosures
-    if len(state.unplacedUnits)*2 < len(state.placements):
+    if len(state.unplacedUnits) * 2 < len(state.placements):
         for unplacedUnits in state.generateDisconnectedGroups(group):
             if doprint:
                 unplacedCount = len(unplacedUnits)
@@ -164,4 +164,4 @@ def printState(state: State):
 
 
 if __name__ == "__main__":
-    printState(solve(3, scale=0))
+    printState(solve(4, "Area (mi2)", scale=0))
