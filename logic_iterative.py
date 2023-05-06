@@ -2,7 +2,7 @@ from os import get_terminal_size as term_size
 
 from data_structs import State, Unit, Group
 from itertools import chain
-from typing import Callable
+from typing import Callable, Iterator, Iterable
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
@@ -20,35 +20,43 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
     )
 
 
+def getPlaceableUnitsFor(state: State, group: Group) -> Iterator[Unit]:
+    if group.empty:
+        return iter(state.unplacedUnits)
+    elif any(state.placements[u] == 0 for u in group.adj):
+        return (unit for unit in group.adj if state.placements[unit] == 0)
+    else:
+        return chain(
+            (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
+            (unit for unit in state.unplacedUnits if all(u not in unit.distances for u in group.units)),
+        )
+
+
 def getNext(state: State) -> tuple[Unit | None, Group]:
-    group = min(
+    for group in sorted(
         state.groups,
         key=lambda group: (
             # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
             -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
             group.metric,
         ),
-    )
-
-    # Get the units which might be viable
-    if group.empty:
-        units = state.unplacedUnits
-    elif any(state.placements[u] == 0 for u in group.adj):
-        units = (unit for unit in group.adj if state.placements[unit] == 0)
-    else:
-        units = chain(
-            (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
-            (unit for unit in state.unplacedUnits if all(u not in unit.distances for u in group.units)),
+    ):
+        retMax = (
+            max(getPlaceableUnitsFor(state, group), key=lambda unit: sorter(state, group, unit), default=None),
+            group,
         )
 
-    return max(units, key=lambda unit: sorter(state, group, unit), default=None), group
+        if retMax:
+            return retMax
+
+    return None, state.groups[0]
 
 
 def doStep(state: State) -> tuple[State, Unit | None, int]:
     unit, group = getNext(state)
 
     if not unit:
-        return state, unit, group.index
+        return state, unit, 0
 
     if doprint:
         if (placement := state.placements[unit]) == 0:
@@ -84,7 +92,8 @@ def solve(
     previousMoves = []
     last = (0, 0)
     while (
-        len(state.unplacedUnits) != 0 or any(group.metric < state.avgGroupMetric * 0.95 for group in state.groups)
+        len(state.unplacedUnits) != 0
+        or any(group.metric < state.avgGroupMetric - state.deviation for group in state.groups)
     ) and last not in previousMoves:
         previousMoves.insert(0, last)
         if len(previousMoves) > 5:
@@ -106,6 +115,10 @@ def numWithPercent(state: State, val: float) -> str:
     return f"{val:,.2f} ({percent(state, val)})"
 
 
+def joinedUnits(units: Iterable[Unit]) -> str:
+    return "|".join(sorted(unit.code for unit in units))
+
+
 def getStatStr(state: State) -> str:
     return (
         f"--------------- + {'Complete' if len(state.unplacedUnits) == 0 else 'Failure'} + ---------------\n"
@@ -117,8 +130,8 @@ def getStatStr(state: State) -> str:
             if len(state.groups) > 1
             else ""
         )
-        + f"Acceptable sizes: {numWithPercent(state, state.avgGroupMetric * 0.95)} "
-        f"to {numWithPercent(state, state.avgGroupMetric * 1.05)}"
+        + f"Acceptable sizes: {numWithPercent(state, state.avgGroupMetric - state.deviation)} "
+        f"to {numWithPercent(state, state.avgGroupMetric + state.deviation)}"
     )
 
 
@@ -129,7 +142,7 @@ def getPlacementStr(state: State) -> str:
             (
                 f"Group {group.index}",
                 percent(state, group.metric),
-                "|".join(sorted(unit.code for unit in group.units)),
+                joinedUnits(group.units),
                 f"{(count := len(group.units))} units ({100 * (count / len(state.placements)):.2f}% of total)",
             )
         )
@@ -139,7 +152,7 @@ def getPlacementStr(state: State) -> str:
             (
                 "Unplaced",
                 percent(state, sum(unit.metric for unit in state.unplacedUnits)),
-                "|".join(sorted(unit.code for unit in state.unplacedUnits)),
+                joinedUnits(state.unplacedUnits),
                 f"{count} units ({100 * (count / len(state.placements)):.2f}% of total)",
             )
         )
@@ -159,4 +172,8 @@ def printState(state: State):
 
 
 if __name__ == "__main__":
-    printState(solve(4, "Area (mi2)", scale=0))
+    state = solve(5, "Area (mi2)", scale=0)
+    printState(state)
+
+    for g in state.groups:
+        print(joinedUnits(getPlaceableUnitsFor(state, g)))

@@ -194,6 +194,7 @@ class State:
         unitMetrics = [unit.metric for unit in unitlist(self.scale)]
         self.sumUnitMetrics = sum(unitMetrics)
         self.avgGroupMetric = self.sumUnitMetrics / numGroup
+        self.deviation = self.avgGroupMetric * 0.05
 
     def addToGroup(self, unit: Unit, group: Group):
         group.addUnit(unit)
