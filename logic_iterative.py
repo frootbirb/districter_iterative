@@ -1,8 +1,8 @@
 from os import get_terminal_size as term_size
+from itertools import chain
+from typing import Callable, Iterable
 
 from data_structs import State, Unit, Group
-from itertools import chain
-from typing import Callable, Iterator, Iterable
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
@@ -32,12 +32,12 @@ def getPlaceableUnitsFor(state: State, group: Group) -> Iterable[Unit]:
         )
 
 
-def getNext(state: State) -> Iterator[tuple[Unit | None, Group]]:
+def getNext(state: State) -> Iterable[tuple[Unit | None, Group]]:
     for group in sorted(
         state.groups,
         key=lambda group: (
             # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
-            -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
+            -(state.hasAnyUnplacedAdjacent(group) or group.empty or not group.adj),
             group.metric,
         ),
     ):
@@ -92,9 +92,7 @@ def solve(
     # Start the solver!
     state: State = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
     previousMoves: list[tuple[Unit, int, int]] = []
-    while len(state.unplacedUnits) != 0 or any(
-        group.metric < state.avgGroupMetric - state.deviation for group in state.groups
-    ):
+    while state.unplacedUnits or any(group.metric < state.avgGroupMetric - state.deviation for group in state.groups):
         state, unit, placement, prevPlacement = doStep(state, previousMoves)
         if not unit or not placement or prevPlacement == None:
             break
@@ -123,7 +121,7 @@ def joinedUnits(units: Iterable[Unit]) -> str:
 
 def getStatStr(state: State) -> str:
     return (
-        f"--------------- + {'Complete' if len(state.unplacedUnits) == 0 else 'Failure'} + ---------------\n"
+        f"--------------- + {'Complete' if state.unplacedUnits else 'Failure'} + ---------------\n"
         f"Created {len(state.groups)} groups of {state.scale} with criteria {state.metricID}\n"
         + (
             f"Final spread: "

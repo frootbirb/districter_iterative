@@ -387,7 +387,7 @@ class SolverTests(unittest.TestCase):
         for numGroup, vals in expected.items():
             state = logic.State(numGroup, "T1", "test")
             for i in range(3):
-                u, gr = next(logic.getNext(state))
+                u, gr = next(iter(logic.getNext(state)))
                 self.assertIsNotNone(u)
                 self.assertEqual(u, vals["unit"][i])
                 self.assertEqual(gr, state.groups[vals["group"][i]])
@@ -399,6 +399,8 @@ class SolverTests(unittest.TestCase):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
         self.assertEqual(state.placements, {a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1})
+
+    # TODO: test print row length
 
     def test_valgrind(self):
         def getNextParam():

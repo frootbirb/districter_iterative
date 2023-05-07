@@ -1,7 +1,5 @@
-import sys
 import csv
 from typing import Iterator, Callable
-from os import get_terminal_size as term_size
 
 # --- Globals ----------------------------------------------------------------------------------------------------------
 
@@ -223,7 +221,7 @@ class State:
 
             newDisconnect = {seed}
             toCheck = set(seed.adj)
-            while len(toCheck) > 0:
+            while toCheck:
                 unit = toCheck.pop()
 
                 # We've hit one of our invalid groups or a placed unit - throw out this group
@@ -317,7 +315,5 @@ def readFile(scale: str) -> tuple[list[Unit], list[str]]:
             unit.adj.add(units[adjacent])
 
     populateDistances(scale, units)
-
-    sys.setrecursionlimit(max(len(units), 1000))
 
     return sorted(units.values(), key=lambda u: u.code), metricNames
