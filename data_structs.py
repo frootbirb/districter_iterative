@@ -188,7 +188,7 @@ class State:
             unit.setCurrentMetric(self.metricID)
 
         self.placements = {unit: 0 for unit in unitlist(self.scale)}
-        self.unplacedUnits = sorted(unitlist(self.scale), key=lambda unit: unit.metric, reverse=True)
+        self.unplacedUnits = set(unitlist(self.scale))
         self.groups = [Group(i + 1) for i in range(numGroup)]
 
         unitMetrics = [unit.metric for unit in unitlist(self.scale)]
@@ -210,15 +210,15 @@ class State:
         return self.groups[self.placements[unit] - 1]
 
     def hasAnyUnplacedAdjacent(self, group: Group) -> bool:
-        return any(self.placements[unit] == 0 for unit in group.adj)
+        return len(group.adj & self.unplacedUnits) != 0
 
     def generateDisconnectedGroups(self, group: Group) -> Iterator[set[Unit]]:
         # Get all units adjacent to the current group which are not in a group
         borders = []
         invalid = set()
         placed = set()
-        for seed in group.adj:
-            if self.placements[seed] != 0 or seed in invalid or seed in placed:
+        for seed in group.adj & self.unplacedUnits:
+            if seed in invalid or seed in placed:
                 continue
 
             newDisconnect = {seed}

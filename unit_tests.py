@@ -258,7 +258,7 @@ class StateTests(unittest.TestCase):
             f"Units prematurely placed: {[(u.code, p) for u, p in state.placements.items() if p != 1]}",
         )
 
-        self.assertEqual(state.unplacedUnits, ["J", "I", "H", "G", "F", "E", "D", "C", "B", "A"])
+        self.assertEqual(state.unplacedUnits, {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"})
 
         self.assertEqual(sorted(g.index for g in state.groups), [1, 2])
 
@@ -311,6 +311,7 @@ class StateTests(unittest.TestCase):
         g1.addUnit(b)
         self.assertTrue(state.hasAnyUnplacedAdjacent(g1))
 
+    # TODO: this does not check invalid!
     def test_generateDisconnected(self):
         state = logic.State(2, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
@@ -408,7 +409,7 @@ class SolverTests(unittest.TestCase):
 
         for state in starmap(logic.solve, getNextParam()):
             self.assertEqual(
-                state.unplacedUnits, [], f"Not all placed for {state.metricID}, {state.scale}, {len(state.groups)}"
+                state.unplacedUnits, set(), f"Not all placed for {state.metricID}, {state.scale}, {len(state.groups)}"
             )
             for g in state.groups:
                 self.assertLess(

@@ -12,7 +12,7 @@ doprint = False
 def sorter(state: State, group: Group, unit: Unit) -> tuple:
     return (
         # Prioritize unplaced units
-        state.placements[unit] == 0,
+        unit in state.unplacedUnits,
         # Prioritize shorter distance
         -group.distanceSum.get(unit, float("inf")),
         # Prioritize units that bring this group as close as possible to the average
@@ -20,11 +20,11 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
     )
 
 
-def getPlaceableUnitsFor(state: State, group: Group) -> Iterator[Unit]:
+def getPlaceableUnitsFor(state: State, group: Group) -> Iterable[Unit]:
     if group.empty:
-        return iter(state.unplacedUnits)
-    elif any(state.placements[u] == 0 for u in group.adj):
-        return (unit for unit in group.adj if state.placements[unit] == 0)
+        return state.unplacedUnits
+    elif unplacedAdjacent := group.adj & state.unplacedUnits:
+        return unplacedAdjacent
     else:
         return chain(
             (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
@@ -71,12 +71,12 @@ def doStep(
 
         # If half the units are placed, we can start checking for enclosures
         if len(state.unplacedUnits) * 2 < len(state.placements):
-            for unplacedUnits in state.generateDisconnectedGroups(group):
+            for disconnectedCount in state.generateDisconnectedGroups(group):
                 if doprint:
-                    unplacedCount = len(unplacedUnits)
+                    unplacedCount = len(disconnectedCount)
                     longEnough = term_size().columns > unplacedCount * 4 + 12
-                    print(f"{group.index}: enclosed {unplacedUnits if longEnough else f'{unplacedCount} units'}")
-                for unplaced in unplacedUnits:
+                    print(f"{group.index}: enclosed {disconnectedCount if longEnough else f'{unplacedCount} units'}")
+                for unplaced in disconnectedCount:
                     state.addToGroup(unplaced, group)
                 if doprint:
                     printState(state)
