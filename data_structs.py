@@ -188,7 +188,7 @@ class State:
             unit.setCurrentMetric(self.metricID)
 
         self.placements = {unit: 0 for unit in unitlist(self.scale)}
-        self.unplacedUnits = sorted(unitlist(self.scale), key=lambda unit: unit.metric, reverse=True)
+        self.unplacedUnits = set(unitlist(self.scale))
         self.groups = [Group(i + 1) for i in range(numGroup)]
 
         unitMetrics = [unit.metric for unit in unitlist(self.scale)]
@@ -205,6 +205,11 @@ class State:
         self.placements[unit] = group.index
         if self._callback:
             self._callback(unit.code, group.index)
+            
+    def removeFromGroup(self, unit: Unit, group: Group):
+        group.removeUnit(unit)
+        self.unplacedUnits.add(unit)
+        self.placements[unit] = 0
 
     def getGroupFor(self, unit: Unit) -> Group:
         return self.groups[self.placements[unit] - 1]

@@ -258,7 +258,7 @@ class StateTests(unittest.TestCase):
             f"Units prematurely placed: {[(u.code, p) for u, p in state.placements.items() if p != 1]}",
         )
 
-        self.assertEqual(state.unplacedUnits, ["J", "I", "H", "G", "F", "E", "D", "C", "B", "A"])
+        self.assertEqual(state.unplacedUnits, {"J", "I", "H", "G", "F", "E", "D", "C", "B", "A"})
 
         self.assertEqual(sorted(g.index for g in state.groups), [1, 2])
 
@@ -357,7 +357,6 @@ class PrintTests(unittest.TestCase):
 
 
 class SolverTests(unittest.TestCase):
-    @unittest.skip("TODO bring this in line with the new sorter")
     def test_sorter(self):
         state = logic.State(6, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
@@ -408,7 +407,7 @@ class SolverTests(unittest.TestCase):
 
         for state in starmap(logic.solve, getNextParam()):
             self.assertEqual(
-                state.unplacedUnits, [], f"Not all placed for {state.metricID}, {state.scale}, {len(state.groups)}"
+                state.unplacedUnits, set(), f"Not all placed for {state.metricID}, {state.scale}, {len(state.groups)}"
             )
             for g in state.groups:
                 self.assertLess(

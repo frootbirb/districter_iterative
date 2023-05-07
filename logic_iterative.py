@@ -11,10 +11,10 @@ doprint = False
 
 def sorter(state: State, group: Group, unit: Unit) -> tuple:
     return (
-        # Prioritize unplaced units
-        state.placements[unit] == 0,
-        # Prioritize shorter distance
-        -group.distanceSum.get(unit, float("inf")),
+        # Prioritize more neighbors in this group
+        len(unit.adj & group.units),
+        # Prioritize fewer unplaced neighbors
+        -len(unit.adj & state.unplacedUnits),
         # Prioritize units that bring this group as close as possible to the average
         -abs(state.avgGroupMetric - unit.metric - group.metric),
     )
@@ -23,30 +23,28 @@ def sorter(state: State, group: Group, unit: Unit) -> tuple:
 def getPlaceableUnitsFor(state: State, group: Group) -> Iterator[Unit]:
     if group.empty:
         return iter(state.unplacedUnits)
-    elif any(state.placements[u] == 0 for u in group.adj):
-        return (unit for unit in group.adj if state.placements[unit] == 0)
     else:
         return chain(
-            (unit for unit in group.adj if state.getGroupFor(unit).canLose(unit)),
+            (group.adj & state.unplacedUnits),
             (unit for unit in state.unplacedUnits if all(u not in unit.distances for u in group.units)),
         )
 
 
-def getNext(state: State) -> Iterator[tuple[Unit | None, Group]]:
-    for group in sorted(
-        state.groups,
-        key=lambda group: (
-            # Prioritize groups that have at least one adjacent empty unit, are empty, or have no adjacent units at all
-            -(state.hasAnyUnplacedAdjacent(group) or group.empty or len(group.adj) == 0),
-            group.metric,
-        ),
-    ):
-        for unit in sorted(
-            getPlaceableUnitsFor(state, group), key=lambda unit: sorter(state, group, unit), reverse=True
-        ):
-            yield unit, group
+def getNext(state: State) -> Iterator[tuple[Unit, Group]]:
+    unit = max(state.unplacedUnits, key=lambda u: u.metric)
+    group = state.groups[0]
 
-    return None, state.groups[0]
+    # print(f"Placed {unit} into {group.index} ({len(state.unplacedUnits)} remaining)")
+    yield unit, group
+
+    while state.unplacedUnits:
+        if group.metric > state.avgGroupMetric:
+            group = state.groups[group.index]
+
+        unit = max(set(state.unplacedUnits), key=lambda u: sorter(state, group, u))
+
+        yield unit, group
+        # print(f"Placed {unit} into {group.index} ({len(state.unplacedUnits)} remaining)")
 
 
 def doStep(
@@ -86,23 +84,43 @@ def doStep(
     return state, None, None, None
 
 
+def recurse(state: State, ineligible: set[tuple[Unit, int]]) -> bool:
+    if not state.unplacedUnits:
+        if all(g.isContiguous for g in state.groups):
+            return True
+        else:
+            print("   NON CONTIGUOUS")
+            return False
+
+    if any((g := group).metric < state.avgGroupMetric for group in state.groups):
+        for u in sorted(getPlaceableUnitsFor(state, g), key=lambda u: abs(state.avgGroupMetric - u.metric - g.metric)):
+            if not (u, g.index) in ineligible:
+                state.addToGroup(u, g)
+                print(f"Placed {u} into {g.index} {joinedUnits(g.units)}")
+                if recurse(state, set(ineligible)):
+                    return True
+                else:
+                    state.removeFromGroup(u, g)
+                    ineligible.add((u, g.index))
+                    print(f" Removed {u} from {g.index} {joinedUnits(g.units)}")
+
+        input(
+            f"   NO ELIGIBLE UNITS FOR GROUP {g.index}: {joinedUnits(g.units)}\n"
+            f"   Adjacent unplaced units: {joinedUnits(g.adj & state.unplacedUnits)}\n"
+            f"   Adjacent units: {'|'.join(f'{unit}:{state.placements[unit]}' for unit in g.adj)}\n"
+            f"   All unplaced ({len(state.unplacedUnits)}): {joinedUnits(state.unplacedUnits)}\n"
+            f"   Ineligible: {'|'.join(f'{unit}:{placement}' for unit, placement in ineligible)}"
+        )
+
+    return False
+
+
 def solve(
     numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback: Callable[[str, int], None] | None = None
 ) -> State:
     # Start the solver!
     state: State = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
-    previousMoves: list[tuple[Unit, int, int]] = []
-    while len(state.unplacedUnits) != 0 or any(
-        group.metric < state.avgGroupMetric - state.deviation for group in state.groups
-    ):
-        state, unit, placement, prevPlacement = doStep(state, previousMoves)
-        if not unit or not placement or prevPlacement == None:
-            break
-
-        previousMoves.append((unit, placement, prevPlacement))
-        if len(previousMoves) > 5:
-            previousMoves.pop(0)
-
+    recurse(state, set())
     return state
 
 
