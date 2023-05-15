@@ -58,7 +58,7 @@ def doTests(scale: str | int, range: range):
     scale = logic.State.parseScale(scale)
     for numGroup, metricID, scale in getNextParam(scale, range):
         print(f"Created {numGroup} groups with criteria {metricID}")
-        logic.printState(logic.solve(numGroup, metricID, scale))
+        logic.Log.state(logic.solve(numGroup, metricID, scale))
 
 
 def doParallelTests(scale: str | int, range: range):
@@ -71,8 +71,7 @@ def stepthrough(numGroup: int, metricID: str | int, scale: str | int):
     def callback(s: str, i: int):
         input()
 
-    logic.doprint = True
-    logic.solve(numGroup, metricID, scale, callback)
+    logic.solve(numGroup, metricID, scale, callback, True)
 
 
 if __name__ == "__main__":

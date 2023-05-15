@@ -338,23 +338,26 @@ class PrintTests(unittest.TestCase):
     def test_percent(self):
         for numGroups in range(1, 4):
             state = logic.State(numGroups, "T1", "test")
-            self.assertEqual(logic.percent(state, 0), "0.00%")
-            self.assertEqual(logic.percent(state, 45), "100.00%")
-            self.assertEqual(logic.percent(state, 7), "15.56%")
+            self.assertEqual(logic.Log.percent(state, 0), "0.00%")
+            self.assertEqual(logic.Log.percent(state, 45), "100.00%")
+            self.assertEqual(logic.Log.percent(state, 7), "15.56%")
 
     def test_numWithPercent(self):
         for numGroups in range(1, 4):
             state = logic.State(numGroups, "T1", "test")
-            self.assertEqual(logic.numWithPercent(state, 0), "0.00 (0.00%)")
-            self.assertEqual(logic.numWithPercent(state, 45), "45.00 (100.00%)")
-            self.assertEqual(logic.numWithPercent(state, 7), "7.00 (15.56%)")
+            self.assertEqual(logic.Log.numWithPercent(state, 0), "0.00 (0.00%)")
+            self.assertEqual(logic.Log.numWithPercent(state, 45), "45.00 (100.00%)")
+            self.assertEqual(logic.Log.numWithPercent(state, 7), "7.00 (15.56%)")
 
     def test_infoDumpStrs(self):
         # Just confirming no crashes
         for numGroups in range(1, 4):
             state = logic.State(numGroups, "T1", "test")
-            stats = logic.getStatStr(state)
-            placements = logic.getPlacementStr(state)
+            stats = logic.Log.getStatStr(state)
+            placements = logic.Log.getPlacementStr(state)
+            self.assertNotEquals(state, "")
+            self.assertNotEquals(stats, "")
+            self.assertNotEquals(placements, "")
 
 
 class SolverTests(unittest.TestCase):

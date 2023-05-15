@@ -6,8 +6,6 @@ from data_structs import State, Unit, Group
 
 # --- Solver -----------------------------------------------------------------------------------------------------------
 
-doprint = False
-
 
 def sorter(state: State, group: Group, unit: Unit) -> tuple:
     return (
@@ -50,7 +48,7 @@ def getNext(state: State) -> Iterable[tuple[Unit | None, Group]]:
 
 
 def doStep(
-    state: State, previousMoves: list[tuple[Unit, int, int]]
+    state: State, previousMoves: list[tuple[Unit, int, int]], doPrint: bool = False
 ) -> tuple[State, None, None, None] | tuple[State, Unit, int, int]:
     for unit, group in getNext(state):
         if not unit:
@@ -58,7 +56,7 @@ def doStep(
         elif (unit, (prevPlacement := state.placements[unit]), group.index) in previousMoves:
             break
 
-        if doprint:
+        if doPrint:
             if prevPlacement == 0:
                 print(f"{group.index}: Adding {unit}")
             else:
@@ -66,20 +64,20 @@ def doStep(
 
         state.addToGroup(unit, group)
 
-        if doprint:
-            print(getPlacementStr(state))
+        if doPrint:
+            print(Log.getPlacementStr(state))
 
         # If half the units are placed, we can start checking for enclosures
         if len(state.unplacedUnits) * 2 < len(state.placements):
             for disconnectedCount in state.generateDisconnectedGroups(group):
-                if doprint:
+                if doPrint:
                     unplacedCount = len(disconnectedCount)
                     longEnough = term_size().columns > unplacedCount * 4 + 12
                     print(f"{group.index}: enclosed {disconnectedCount if longEnough else f'{unplacedCount} units'}")
                 for unplaced in disconnectedCount:
                     state.addToGroup(unplaced, group)
-                if doprint:
-                    printState(state)
+                if doPrint:
+                    Log.state(state)
 
         return state, unit, group.index, prevPlacement
 
@@ -87,13 +85,17 @@ def doStep(
 
 
 def solve(
-    numGroup: int, metricID: str | int = 0, scale: str | int = 0, callback: Callable[[str, int], None] | None = None
+    numGroup: int,
+    metricID: str | int = 0,
+    scale: str | int = 0,
+    callback: Callable[[str, int], None] | None = None,
+    doPrint: bool = False,
 ) -> State:
     # Start the solver!
     state: State = State(numGroup=numGroup, metricID=metricID, scale=scale, callback=callback)
     previousMoves: list[tuple[Unit, int, int]] = []
     while state.unplacedUnits or any(group.metric < state.avgGroupMetric - state.deviation for group in state.groups):
-        state, unit, placement, prevPlacement = doStep(state, previousMoves)
+        state, unit, placement, prevPlacement = doStep(state, previousMoves, doPrint)
         if not unit or not placement or prevPlacement == None:
             break
 
@@ -107,73 +109,75 @@ def solve(
 # --- Printing methods -------------------------------------------------------------------------------------------------
 
 
-def percent(state: State, val: float) -> str:
-    return f"{100 * val / state.sumUnitMetrics:.2f}%"
+class Log:
+    @staticmethod
+    def percent(state: State, val: float) -> str:
+        return f"{100 * val / state.sumUnitMetrics:.2f}%"
 
+    @staticmethod
+    def numWithPercent(state: State, val: float) -> str:
+        return f"{val:,.2f} ({Log.percent(state, val)})"
 
-def numWithPercent(state: State, val: float) -> str:
-    return f"{val:,.2f} ({percent(state, val)})"
+    @staticmethod
+    def joinedUnits(units: Iterable[Unit]) -> str:
+        return "|".join(sorted(unit.code for unit in units))
 
-
-def joinedUnits(units: Iterable[Unit]) -> str:
-    return "|".join(sorted(unit.code for unit in units))
-
-
-def getStatStr(state: State) -> str:
-    return (
-        f"--------------- + {'Complete' if state.unplacedUnits else 'Failure'} + ---------------\n"
-        f"Created {len(state.groups)} groups of {state.scale} with criteria {state.metricID}\n"
-        + (
-            f"Final spread: "
-            f"{numWithPercent(state, (largest := max(state.groups).metric) - (smallest := min(state.groups).metric))}, "
-            f"from {numWithPercent(state, smallest)} to {numWithPercent(state, largest)}\n"
-            if len(state.groups) > 1
-            else ""
-        )
-        + f"Acceptable sizes: {numWithPercent(state, state.avgGroupMetric - state.deviation)} "
-        f"to {numWithPercent(state, state.avgGroupMetric + state.deviation)}"
-    )
-
-
-def getPlacementStr(state: State) -> str:
-    results = []
-    for group in sorted(state.groups, reverse=True):
-        results.append(
-            (
-                f"Group {group.index}",
-                percent(state, group.metric),
-                joinedUnits(group.units),
-                f"{(count := len(group.units))} units ({100 * (count / len(state.placements)):.2f}% of total)",
+    @staticmethod
+    def getStatStr(state: State) -> str:
+        return (
+            f"--------------- + {'Complete' if state.unplacedUnits else 'Failure'} + ---------------\n"
+            f"Created {len(state.groups)} groups of {state.scale} with criteria {state.metricID}\n"
+            + (
+                f"Final spread: "
+                f"{Log.numWithPercent(state, (largest := max(state.groups).metric) - (smallest := min(state.groups).metric))}, "
+                f"from {Log.numWithPercent(state, smallest)} to {Log.numWithPercent(state, largest)}\n"
+                if len(state.groups) > 1
+                else ""
             )
+            + f"Acceptable sizes: {Log.numWithPercent(state, state.avgGroupMetric - state.deviation)} "
+            f"to {Log.numWithPercent(state, state.avgGroupMetric + state.deviation)}"
         )
 
-    if (count := len(state.unplacedUnits)) > 0:
-        results.append(
-            (
-                "Unplaced",
-                percent(state, sum(unit.metric for unit in state.unplacedUnits)),
-                joinedUnits(state.unplacedUnits),
-                f"{count} units ({100 * (count / len(state.placements)):.2f}% of total)",
+    @staticmethod
+    def getPlacementStr(state: State) -> str:
+        results = []
+        for group in sorted(state.groups, reverse=True):
+            results.append(
+                (
+                    f"Group {group.index}",
+                    Log.percent(state, group.metric),
+                    Log.joinedUnits(group.units),
+                    f"{(count := len(group.units))} units ({100 * (count / len(state.placements)):.2f}% of total)",
+                )
             )
+
+        if (count := len(state.unplacedUnits)) > 0:
+            results.append(
+                (
+                    "Unplaced",
+                    Log.percent(state, sum(unit.metric for unit in state.unplacedUnits)),
+                    Log.joinedUnits(state.unplacedUnits),
+                    f"{count} units ({100 * (count / len(state.placements)):.2f}% of total)",
+                )
+            )
+
+        length = len(max(results, key=lambda item: len(item[0]))[0])
+        max_unit_space = term_size().columns - (length + 12)
+        return "\n".join(
+            f" {name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}"
+            for (name, pct, units, summary) in results
         )
 
-    length = len(max(results, key=lambda item: len(item[0]))[0])
-    max_unit_space = term_size().columns - (length + 12)
-    return "\n".join(
-        f" {name:{str(length)}} ({pct:6}): {units if len(units) < max_unit_space else summary}"
-        for (name, pct, units, summary) in results
-    )
-
-
-def printState(state: State):
-    print(getStatStr(state))
-    print(getPlacementStr(state))
-    print()
+    @staticmethod
+    def state(state: State):
+        print(Log.getStatStr(state))
+        print(Log.getPlacementStr(state))
+        print()
 
 
 if __name__ == "__main__":
     state = solve(5, "Area (mi2)", scale=0)
-    printState(state)
+    Log.state(state)
 
     for g in state.groups:
-        print(joinedUnits(getPlaceableUnitsFor(state, g)))
+        print(Log.joinedUnits(getPlaceableUnitsFor(state, g)))
