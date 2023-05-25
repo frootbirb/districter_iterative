@@ -311,7 +311,6 @@ class StateTests(unittest.TestCase):
         g1.addUnit(b)
         self.assertTrue(state.hasAnyUnplacedAdjacent(g1))
 
-    # TODO: this does not check invalid!
     def test_generateDisconnected(self):
         state = logic.State(2, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
@@ -349,7 +348,6 @@ class PrintTests(unittest.TestCase):
             self.assertEqual(logic.Log.numWithPercent(state, 45), "45.00 (100.00%)")
             self.assertEqual(logic.Log.numWithPercent(state, 7), "7.00 (15.56%)")
 
-    @unittest.skip("TODO: this is busted?")
     def test_infoDumpStrs(self):
         # Just confirming no crashes
         for numGroups in range(1, 4):
@@ -360,25 +358,21 @@ class PrintTests(unittest.TestCase):
             self.assertNotEquals(stats, "")
             self.assertNotEquals(placements, "")
 
+    def test_stringWidth(self):
+        state = logic.State(1, "Population", "states")
+        g = state.groups[0]
+        numChars = logic.term_size().columns
+        self.assertGreater(numChars, 0)
+        while state.unplacedUnits:
+            state.addToGroup(next(iter(state.unplacedUnits)), g)
+            for line in logic.Log.getPlacementStr(state).splitlines():
+                print(line)
+                linelen = len(line)
+                self.assertGreater(linelen, 0)
+                self.assertLessEqual(linelen, numChars)
+
 
 class SolverTests(unittest.TestCase):
-    @unittest.skip("TODO bring this in line with the new sorter")
-    def test_sorter(self):
-        state = logic.State(6, "T1", "test")
-        (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
-        (g1, g2, g3, g4, g5, g6) = state.groups
-        # Sorted in order of metric, except j which would be too large and is deprioritized
-        self.assertEqual(
-            sorted(state.placements, key=lambda unit: logic.sorter(state, g1, unit), reverse=True),
-            [i, h, g, f, e, d, c, b, a, j],
-        )
-        state.addToGroup(i, g1)
-        # Sorted in order of metric, except j, and i which is placed
-        self.assertEqual(
-            sorted(state.placements, key=lambda unit: logic.sorter(state, g2, unit), reverse=True),
-            [h, g, f, e, d, c, b, a, j, i],
-        )
-
     # TODO: test more complex scenarios
     def test_getNext(self):
         state = logic.State(1, "T1", "test")
@@ -403,8 +397,6 @@ class SolverTests(unittest.TestCase):
         state = logic.solve(1, "T1", "test")
         (a, b, c, d, e, f, g, h, i, j) = state.placements.keys()
         self.assertEqual(state.placements, {a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1})
-
-    # TODO: test print row length
 
     def test_valgrind(self):
         def getNextParam():

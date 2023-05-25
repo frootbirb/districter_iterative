@@ -1,4 +1,4 @@
-from os import get_terminal_size as term_size
+from shutil import get_terminal_size as term_size
 from itertools import chain
 from typing import Callable, Iterable
 
